@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f6f4a">
+  <title>Registro en terreno — Fundación Chile</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="iconos/icono-192.png">
+  <link rel="apple-touch-icon" href="iconos/icono-192.png">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="cabecera">
+  <div class="cabecera-titulo">
+    <h1 id="nombre-proyecto">Registro en terreno</h1>
+    <span class="etiqueta-beta" title="Versión de prueba: la especificación todavía puede cambiar">beta</span>
+  </div>
+  <div class="cabecera-estado">
+    <span id="estado-conexion" class="chip chip-neutro">Conexión: comprobando</span>
+    <span id="estado-pendientes" class="chip chip-neutro">Sin registros pendientes</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-registrar" class="pantalla activa">
+    <form id="formulario" novalidate>
+
+      <fieldset class="bloque">
+        <legend>Actividad</legend>
+        <label for="codigo_edt">¿Qué se está ejecutando?</label>
+        <select id="codigo_edt" name="codigo_edt" required>
+          <option value="">Selecciona una actividad…</option>
+        </select>
+        <p id="detalle-actividad" class="ayuda"></p>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Datos de la jornada</legend>
+        <div id="campos-comunes"></div>
+
+        <div class="panel-calculado" id="panel-calculado">
+          <h3>Calculado automáticamente</h3>
+          <dl>
+            <div><dt>Duración bruta</dt><dd id="calc-bruta">—</dd></div>
+            <div><dt>Descuento de colación</dt><dd id="calc-colacion">—</dd></div>
+            <div><dt>Duración trabajada</dt><dd id="calc-neta">—</dd></div>
+            <div><dt>Horas-hombre</dt><dd id="calc-hh">—</dd></div>
+          </dl>
+          <p class="ayuda" id="ayuda-colacion"></p>
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque" id="bloque-especificos" hidden>
+        <legend>Lo ejecutado</legend>
+        <div id="campos-especificos"></div>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Observaciones</legend>
+        <div id="campos-observaciones"></div>
+      </fieldset>
+
+      <div id="avisos" class="avisos" hidden></div>
+
+      <div class="acciones">
+        <button type="submit" class="boton boton-primario" id="boton-guardar">Guardar registro</button>
+        <button type="button" class="boton boton-secundario" id="boton-limpiar">Limpiar</button>
+      </div>
+      <p id="mensaje-guardado" class="mensaje" hidden></p>
+    </form>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-registros" class="pantalla">
+    <h2>Registros guardados</h2>
+    <p class="ayuda" id="resumen-registros"></p>
+    <div class="acciones acciones-linea">
+      <button type="button" class="boton boton-primario" id="boton-sincronizar">Sincronizar ahora</button>
+    </div>
+    <p id="mensaje-sync" class="mensaje" hidden></p>
+    <div id="lista-registros" class="lista"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-exportar" class="pantalla">
+    <h2>Exportar y ajustes</h2>
+
+    <div class="bloque">
+      <h3>Dónde se ven los indicadores</h3>
+      <p class="ayuda">
+        Esta aplicación solo registra. El avance, el rendimiento por hora-hombre y
+        el costo se calculan en la planilla de Google, en la hoja
+        <strong id="nombre-hoja-kpi">KPI</strong>, con fórmulas que se recalculan
+        solas cada vez que llega un registro nuevo. No hay que volver a ejecutar
+        nada.
+      </p>
+      <a id="enlace-planilla" class="boton boton-primario boton-enlace" href="#" target="_blank" rel="noopener" hidden>
+        Abrir la planilla
+      </a>
+      <p class="ayuda" id="ayuda-planilla"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Copia de respaldo</h3>
+      <p class="ayuda">
+        Sirve si un teléfono se pierde o si hay que revisar los datos sin abrir la
+        planilla. No reemplaza a la sincronización: los indicadores salen de la
+        planilla, no de estos archivos.
+      </p>
+      <div class="acciones">
+        <button type="button" class="boton boton-secundario" id="boton-exportar-excel">Descargar Excel</button>
+        <button type="button" class="boton boton-secundario" id="boton-exportar-json">Descargar JSON</button>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h3>Dirección de sincronización</h3>
+      <p class="ayuda">
+        La aplicación ya trae la dirección del Apps Script. Solo hay que escribirla
+        aquí si se creó una implementación nueva y todavía no se ha publicado una
+        versión de la aplicación con esa dirección.
+      </p>
+      <label for="url_apps_script">Dirección del Apps Script</label>
+      <input type="url" id="url_apps_script" placeholder="https://script.google.com/macros/s/…/exec">
+      <div class="acciones">
+        <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar dirección</button>
+        <button type="button" class="boton boton-secundario" id="boton-restablecer-url">Volver a la de la app</button>
+      </div>
+      <p id="mensaje-url" class="mensaje" hidden></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Jornada del proyecto</h3>
+      <p id="texto-jornada" class="ayuda"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Calendario</h3>
+      <p id="texto-calendario" class="ayuda"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Actividades fuera de la aplicación</h3>
+      <p class="ayuda">
+        La EDT tiene 32 actividades. Estas quedan fuera del formulario porque la
+        especificación indica que no se registran en la aplicación. Se listan aquí
+        para que se sepa que existen, y llegan a la planilla marcadas como «No».
+      </p>
+      <ul id="lista-fuera-app" class="lista-simple"></ul>
+    </div>
+
+    <div class="bloque">
+      <h3>Versión</h3>
+      <p id="texto-version" class="ayuda"></p>
+      <p class="ayuda">
+        Esta es una versión beta: la especificación todavía puede cambiar y hay dos
+        actividades cuyo registro en la aplicación está por confirmar.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="navegacion">
+  <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
+  <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
+  <button type="button" data-pantalla="exportar" class="nav-boton">Exportar</button>
+</nav>
+
+<script src="js/version.js"></script>
+<script src="js/config-actividades.js"></script>
+<script src="js/calculos.js"></script>
+<script src="js/almacenamiento.js"></script>
+<script src="js/formulario.js"></script>
+<script src="js/xlsx-minimo.js"></script>
+<script src="js/exportar.js"></script>
+<script src="js/sincronizacion.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

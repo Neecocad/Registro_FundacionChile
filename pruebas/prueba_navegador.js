@@ -63,8 +63,8 @@ function registros(pagina) {
 }
 
 async function llenarJornada(pagina, cantidad) {
-  await pagina.fill('#campo_persona_que_registra', 'Persona de prueba');
-  await pagina.click('.opciones-boton label:has-text("Las Mercedes")');
+  await pagina.selectOption('#campo_persona_que_registra', 'FRANKLIN_NETTLE');
+  await pagina.selectOption('#campo_sector', 'LAS_MERCEDES');
   await pagina.fill('#campo_cantidad_trabajadores', '8');
   await pagina.fill('#campo_fecha', '2026-08-12');
   await pagina.fill('#campo_cantidad_zanjas_marcadas', String(cantidad));
@@ -157,6 +157,41 @@ async function main() {
   const horaTermino = await pagina.inputValue('#campo_hora_termino');
   revisar('el horario viene con la jornada del proyecto', horaInicio === '08:00' && horaTermino === '16:00',
     'vino ' + horaInicio + ' a ' + horaTermino);
+
+  // Sin registros, la insignia no debe mostrar un 0. Se comprueba porque el
+  // `hidden` del codigo no basta: cualquier `display` en el CSS le gana a la
+  // regla del navegador y la instruccion queda corriendo sin efecto.
+  const insigniaVacia = await pagina.evaluate(() => {
+    const n = document.querySelector('#conteo-registros');
+    return { oculta: n.hidden, visible: n.offsetParent !== null };
+  });
+  revisar('sin registros, la pestaña no muestra un contador en cero',
+    insigniaVacia.oculta && !insigniaVacia.visible, JSON.stringify(insigniaVacia));
+
+  // --- Persona y sector son listas cerradas ---------------------------------
+
+  const listas = await pagina.evaluate(() => {
+    const leer = (id) => {
+      const n = document.querySelector(id);
+      return {
+        esLista: !!n && n.tagName === 'SELECT',
+        opciones: n ? Array.from(n.options).map((o) => o.textContent).filter((t) => t !== 'Selecciona…') : [],
+      };
+    };
+    return { persona: leer('#campo_persona_que_registra'), sector: leer('#campo_sector') };
+  });
+
+  revisar('la persona que registra se elige de una lista, no se escribe',
+    listas.persona.esLista, JSON.stringify(listas.persona));
+  revisar('la lista trae las tres personas del proyecto',
+    JSON.stringify(listas.persona.opciones) ===
+      JSON.stringify(['Franklin Nettle', 'Cristian Diaz', 'Maria Paz Quiroz']),
+    JSON.stringify(listas.persona.opciones));
+  revisar('el sector tambien se elige de una lista',
+    listas.sector.esLista, JSON.stringify(listas.sector));
+  revisar('la lista de sectores trae los dos del proyecto',
+    JSON.stringify(listas.sector.opciones) === JSON.stringify(['Las Mercedes', 'Ibacache']),
+    JSON.stringify(listas.sector.opciones));
 
   // --- Panel de calculados --------------------------------------------------
 
@@ -372,8 +407,8 @@ async function main() {
 
   await pagina.selectOption('#codigo_edt', '2.2');
   await pagina.waitForSelector('#campo_metros_microterraza_marcados');
-  await pagina.fill('#campo_persona_que_registra', 'Persona de prueba');
-  await pagina.click('.opciones-boton label:has-text("Ibacache")');
+  await pagina.selectOption('#campo_persona_que_registra', 'CRISTIAN_DIAZ');
+  await pagina.selectOption('#campo_sector', 'IBACACHE');
   await pagina.fill('#campo_cantidad_trabajadores', '5');
   await pagina.fill('#campo_fecha', '2026-08-13');
   await pagina.fill('#campo_metros_microterraza_marcados', '40');
@@ -441,6 +476,9 @@ async function main() {
   revisar('el envio lleva el sector con su nombre visible, no el codigo interno',
     cuerpo.registro && cuerpo.registro.sector === 'Las Mercedes',
     JSON.stringify(cuerpo.registro && cuerpo.registro.sector));
+  revisar('el envio lleva la persona con su nombre, no el codigo interno',
+    cuerpo.registro && cuerpo.registro.persona_que_registra === 'Franklin Nettle',
+    JSON.stringify(cuerpo.registro && cuerpo.registro.persona_que_registra));
   revisar('el campo propio de la actividad viaja en su propia columna',
     cuerpo.registro && cuerpo.registro.cantidad_zanjas_marcadas !== undefined &&
       cuerpo.registro.detalle === undefined,

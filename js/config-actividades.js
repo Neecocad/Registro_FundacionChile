@@ -85,6 +85,23 @@ const CATALOGOS = {
       "etiqueta": "Requiere reposición",
       "orden": 3
     }
+  ],
+  "PERSONAS_FCH": [
+    {
+      "codigo": "FRANKLIN_NETTLE",
+      "etiqueta": "Franklin Nettle",
+      "orden": 1
+    },
+    {
+      "codigo": "CRISTIAN_DIAZ",
+      "etiqueta": "Cristian Diaz",
+      "orden": 2
+    },
+    {
+      "codigo": "MARIA_PAZ_QUIROZ",
+      "etiqueta": "Maria Paz Quiroz",
+      "orden": 3
+    }
   ]
 };
 
@@ -105,14 +122,14 @@ const PARAMETROS_COMUNES = [
   {
     "codigo": "persona_que_registra",
     "etiqueta": "Persona que registra",
-    "tipo": "texto",
+    "tipo": "lista",
     "obligatorio": true,
-    "catalogo": null,
-    "validacion": "Catálogo de personas pendiente de definición",
+    "catalogo": "PERSONAS_FCH",
+    "validacion": "Una de las personas del catálogo",
     "origen": "Usuario",
     "rol_kpi": "dimensión",
     "orden": 2,
-    "notas": null
+    "notas": "Catálogo definido por el usuario. Antes era texto libre, lo que hacía que «J. Pérez» y «Juan Pérez» contaran como dos personas distintas en los indicadores."
   },
   {
     "codigo": "sector",

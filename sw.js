@@ -7,7 +7,7 @@
 //
 // La version va junto con APP_VERSION en js/version.js.
 // `node herramientas/verificar_versiones.js` comprueba que coincidan.
-const CACHE = 'fch-registro-v1.0.1';
+const CACHE = 'fch-registro-v1.0.2';
 
 const ARCHIVOS = [
   './',

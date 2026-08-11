@@ -190,9 +190,6 @@ dentro de `node pruebas/ejecutar.js`.
   `#ERROR!`. Ver el paso 4 de `docs/como_publicar.md`.
 - **Publicar la aplicación** en GitHub Pages.
 - Confirmar si 1.1 y 10.1 se registran en la aplicación.
-- Definir el catálogo de personas. Hoy es texto libre, y eso significa que
-  «J. Pérez» y «Juan Pérez» se cuentan como dos personas distintas en la hoja
-  «Por persona».
 - Cargar los valores económicos en `Costos_MariaPinto`.
 - Probar la primera sincronización real. Lo probado hasta ahora es el Apps Script
   contra una planilla simulada.

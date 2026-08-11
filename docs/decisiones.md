@@ -189,15 +189,33 @@ cada fórmula de la hoja para asegurarlo.
 
 ---
 
-## 8. Lo que quedó pendiente
+## 8. Persona y sector se eligen de una lista
+
+**Decisión:** los dos campos son listas cerradas. Las personas son Franklin
+Nettle, Cristian Diaz y Maria Paz Quiroz; los sectores, Las Mercedes e Ibacache.
+
+**Por qué así:** la EDT dejaba la persona como texto libre, con el catálogo «por
+definir». Con texto libre, «J. Pérez» y «Juan Pérez» cuentan como dos personas
+distintas en la tabla «Por persona» de la hoja KPI, y eso no se nota hasta que
+alguien mira ese cuadro y no le calzan las horas.
+
+**Dónde se cambia:** en la hoja `03_Catalogos` de la planilla de especificación,
+catálogo `PERSONAS_FCH`, y después `python3 herramientas/generar_config.py`. Si
+entra o sale gente del equipo, ese es el único lugar que hay que tocar.
+
+**Qué se guarda y qué viaja:** por dentro se guarda un código estable
+(`FRANKLIN_NETTLE`), pero a la planilla viaja el nombre visible. Si viajara el
+código, la tabla «Por persona» diría `FRANKLIN_NETTLE`. La traducción se resuelve
+desde la configuración y no campo por campo, así que un catálogo nuevo no obliga
+a acordarse de agregarla.
+
+---
+
+## 9. Lo que quedó pendiente
 
 - **Crear la planilla, implementar el Apps Script y pegar las dos direcciones.**
   Ver `docs/como_publicar.md`.
 - **Confirmar 1.1 y 10.1.** Hoy aparecen marcadas «por confirmar».
-- **Catálogo de personas.** La EDT lo deja pendiente. Hoy es texto libre, lo que
-  significa que «J. Pérez» y «Juan Pérez» aparecen como dos personas distintas en
-  la tabla «Por persona» de la hoja KPI. Cuando se defina la lista, se agrega
-  como catálogo en la hoja `03_Catalogos` y se regenera la configuración.
 - **Probar contra la planilla real.** Lo probado es el Apps Script contra una
   planilla simulada en Node. La primera sincronización real hay que mirarla.
 - **Cargar los valores económicos** en `Costos_MariaPinto`.

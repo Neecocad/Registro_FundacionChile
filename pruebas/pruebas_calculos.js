@@ -232,7 +232,7 @@ function registroGuardado(cambios) {
       categoria: 'Conservación de suelos y aguas',
       unidad_medida: 'N° de zanjas marcadas',
       fecha: '2026-08-12',
-      persona_que_registra: 'Persona de prueba',
+      persona_que_registra: 'FRANKLIN_NETTLE',
       sector: 'LAS_MERCEDES',
       cantidad_trabajadores: 8,
       hora_inicio: '08:00',
@@ -250,9 +250,43 @@ function registroGuardado(cambios) {
   );
 }
 
-prueba('a la planilla viaja el nombre visible del sector, no su codigo', () => {
+prueba('a la planilla viaja el nombre visible y no el codigo interno', () => {
+  // En la hoja KPI se agrupa por sector y por persona: ahi tiene que leerse
+  // "Las Mercedes" y no "LAS_MERCEDES".
   const fila = Sincronizacion.fila(registroGuardado(), config);
   igual(fila.sector, 'Las Mercedes');
+  igual(fila.persona_que_registra, 'Franklin Nettle');
+});
+
+prueba('la traduccion cubre cualquier campo de lista, no solo los conocidos', () => {
+  // Se resuelve desde la configuracion, asi que un catalogo nuevo no obliga a
+  // acordarse de agregar su traduccion.
+  const actividad = config.ACTIVIDADES.filter((a) => a.codigo === '1.1')[0];
+  const fila = Sincronizacion.fila(
+    registroGuardado({
+      codigo_edt: '1.1',
+      detalle: { cantidad_informes_emitidos: 1, estado_entregable: 'EN_REVISION' },
+    }),
+    config
+  );
+  afirmar(actividad.parametros.some((p) => p.codigo === 'estado_entregable'));
+  igual(fila.estado_entregable, 'En revisión');
+});
+
+prueba('el catalogo de personas trae las tres del proyecto', () => {
+  igual(config.CATALOGOS.PERSONAS_FCH.length, 3);
+  igual(
+    config.CATALOGOS.PERSONAS_FCH.map((p) => p.etiqueta).join(' | '),
+    'Franklin Nettle | Cristian Diaz | Maria Paz Quiroz'
+  );
+});
+
+prueba('la persona que registra ya no es texto libre', () => {
+  // Con texto libre, "J. Perez" y "Juan Perez" cuentan como dos personas
+  // distintas en la tabla por persona de la hoja KPI.
+  const p = config.PARAMETROS_COMUNES.filter((x) => x.codigo === 'persona_que_registra')[0];
+  igual(p.tipo, 'lista');
+  igual(p.catalogo, 'PERSONAS_FCH');
 });
 
 prueba('la fila lleva la meta vigente de la actividad', () => {

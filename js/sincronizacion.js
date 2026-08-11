@@ -54,11 +54,24 @@
     'fecha_creacion', 'fecha_modificacion',
   ];
 
-  /** Nombre visible del sector; a la planilla viaja la etiqueta, no el codigo. */
-  function etiquetaSector(codigo, config) {
-    const catalogo = (config.CATALOGOS && config.CATALOGOS.SECTORES_FCH) || [];
-    const encontrado = catalogo.filter(function (s) { return s.codigo === codigo; })[0];
+  /**
+   * Nombre visible de un valor de catalogo.
+   *
+   * A la planilla viaja la etiqueta y no el codigo interno: en las tablas de la
+   * hoja KPI se agrupa por sector y por persona, y ahi tiene que leerse
+   * "Las Mercedes" y no "LAS_MERCEDES".
+   */
+  function etiquetaDeCatalogo(codigo, nombreCatalogo, config) {
+    const catalogo = (config.CATALOGOS && config.CATALOGOS[nombreCatalogo]) || [];
+    const encontrado = catalogo.filter(function (v) { return v.codigo === codigo; })[0];
     return encontrado ? encontrado.etiqueta : codigo || '';
+  }
+
+  /** Los parametros de tipo lista, con el catalogo del que salen sus valores. */
+  function camposDeLista(actividad, config) {
+    return config.PARAMETROS_COMUNES
+      .concat((actividad && actividad.parametros) || [])
+      .filter(function (p) { return p.tipo === 'lista' && p.catalogo; });
   }
 
   function fila(registro, config) {
@@ -74,7 +87,6 @@
 
     f.proyecto_id = config.PROYECTO.proyecto_id;
     f.nombre_proyecto = config.PROYECTO.nombre;
-    f.sector = etiquetaSector(registro.sector, config);
     f.meta_vigente = actividad && actividad.meta ? actividad.meta : '';
     f.registro_activo = registro.registro_activo === false ? false : true;
 
@@ -83,6 +95,13 @@
     Object.keys(registro.detalle || {}).forEach(function (clave) {
       const valor = registro.detalle[clave];
       if (!(clave in f)) f[clave] = valor === undefined || valor === null ? '' : valor;
+    });
+
+    // Todo lo que salga de un catalogo viaja con su nombre visible. Se resuelve
+    // desde la configuracion y no campo por campo: asi un catalogo nuevo no
+    // obliga a acordarse de agregar la traduccion aca.
+    camposDeLista(actividad, config).forEach(function (p) {
+      if (f[p.codigo]) f[p.codigo] = etiquetaDeCatalogo(f[p.codigo], p.catalogo, config);
     });
 
     return f;
@@ -199,6 +218,7 @@
     guardarUrl: guardarUrl,
     restablecerUrl: restablecerUrl,
     hayConexion: hayConexion,
+    etiquetaDeCatalogo: etiquetaDeCatalogo,
     fila: fila,
     sincronizar: sincronizar,
   };

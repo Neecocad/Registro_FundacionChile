@@ -70,32 +70,10 @@
     }
   }
 
-  /**
-   * El sector se dibuja como dos botones y no como lista desplegable: son solo
-   * dos valores, se elige con guantes y una lista desplegable esconde el valor
-   * elegido detras de un toque extra.
-   */
-  function controlSector(parametro, catalogos) {
-    const contenedor = elemento('div', { clase: 'opciones-boton', id: 'campo_' + parametro.codigo });
-    (catalogos[parametro.catalogo] || []).forEach(function (opcion) {
-      const radio = elemento('input', {
-        type: 'radio',
-        name: parametro.codigo,
-        value: opcion.codigo,
-        'data-parametro': parametro.codigo,
-      });
-      const label = elemento('label', {}, [radio, elemento('span', { texto: opcion.etiqueta })]);
-      contenedor.appendChild(label);
-    });
-    return contenedor;
-  }
-
   function bloqueCampo(parametro, catalogos) {
     const fragmento = document.createDocumentFragment();
     fragmento.appendChild(etiquetaCampo(parametro));
-    fragmento.appendChild(
-      parametro.codigo === 'sector' ? controlSector(parametro, catalogos) : control(parametro, catalogos)
-    );
+    fragmento.appendChild(control(parametro, catalogos));
     if (parametro.validacion && parametro.tipo !== 'fecha') {
       // La validacion declarada en la EDT se muestra como ayuda para que la
       // persona sepa que se espera, no como texto oculto en el codigo.
@@ -109,10 +87,10 @@
     const v = parametro.validacion || '';
     if (/^>\s*0$/.test(v)) return 'Debe ser mayor que cero.';
     if (/^(>=|≥)\s*0$/.test(v)) return 'Cero o más.';
-    if (/pendiente de definición/i.test(v)) return 'Escribe tu nombre completo. El listado de personas aún no está definido.';
     if (/Posterior a hora_inicio/i.test(v)) return null;
     if (/mm >= 0/i.test(v)) return 'Milímetros medidos, cero o más.';
     if (/Las Mercedes o Ibacache/i.test(v)) return null;
+    if (/persona[s]? del catálogo/i.test(v)) return null;
     return null;
   }
 
@@ -244,10 +222,6 @@
   }
 
   function valorDeCampo(formulario, parametro) {
-    if (parametro.codigo === 'sector') {
-      const marcado = formulario.querySelector('input[name="sector"]:checked');
-      return marcado ? marcado.value : '';
-    }
     const campo = formulario.querySelector('[data-parametro="' + parametro.codigo + '"]');
     if (!campo) return '';
     if (parametro.tipo === 'entero' || parametro.tipo === 'decimal') {

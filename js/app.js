@@ -33,10 +33,9 @@
     return Calculos.textoDeFecha(new Date());
   }
 
-  function nombreSector(codigo) {
-    const catalogo = config.CATALOGOS.SECTORES_FCH || [];
-    const encontrado = catalogo.filter(function (s) { return s.codigo === codigo; })[0];
-    return encontrado ? encontrado.etiqueta : codigo || 'Sin sector';
+  /** Nombre visible de un valor de catalogo; en pantalla nunca se muestra el codigo. */
+  function etiqueta(codigo, nombreCatalogo) {
+    return Sincronizacion.etiquetaDeCatalogo(codigo, nombreCatalogo, config) || '—';
   }
 
   // ---------------------------------------------------------------------------
@@ -222,11 +221,7 @@
     poner('hora_termino', config.JORNADA.hora_termino);
     poner('persona_que_registra', preferencias.persona_que_registra);
     poner('cantidad_trabajadores', preferencias.cantidad_trabajadores);
-
-    if (preferencias.sector) {
-      const radio = formulario.querySelector('input[name="sector"][value="' + preferencias.sector + '"]');
-      if (radio) radio.checked = true;
-    }
+    poner('sector', preferencias.sector);
 
     alCambiarActividad();
     actualizarCalculados();
@@ -265,7 +260,8 @@
       ]),
       el('div', {
         clase: 'tarjeta-sub',
-        texto: registro.fecha + ' · ' + nombreSector(registro.sector) + ' · ' + registro.persona_que_registra,
+        texto: registro.fecha + ' · ' + etiqueta(registro.sector, 'SECTORES_FCH') +
+          ' · ' + etiqueta(registro.persona_que_registra, 'PERSONAS_FCH'),
       }),
       el('div', { clase: 'tarjeta-datos' }, [
         dato('Ejecutado',

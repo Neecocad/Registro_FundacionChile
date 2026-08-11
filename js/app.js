@@ -378,8 +378,6 @@
   // ---------------------------------------------------------------------------
 
   function prepararExportar() {
-    $('#nombre-hoja-kpi').textContent = 'KPI_MariaPinto';
-
     $('#boton-exportar-excel').addEventListener('click', function () {
       Exportar.aExcel(Almacenamiento.listar(), config);
     });
@@ -387,80 +385,22 @@
       Exportar.aJson(Almacenamiento.exportarTodo());
     });
 
+    $('#boton-sincronizar').addEventListener('click', sincronizar);
+
     $('#url_apps_script').value = Sincronizacion.leerUrl();
     $('#boton-guardar-url').addEventListener('click', function () {
       Sincronizacion.guardarUrl($('#url_apps_script').value);
       mostrarMensaje('#mensaje-url', 'Dirección guardada en este teléfono.', null);
-      comprobarPlanilla();
     });
     $('#boton-restablecer-url').addEventListener('click', function () {
       $('#url_apps_script').value = Sincronizacion.restablecerUrl();
       mostrarMensaje('#mensaje-url', 'Se volvió a la dirección que trae la aplicación.', null);
-      comprobarPlanilla();
-    });
-
-    const horasDia = Calculos.horasJornadaEstandar(config.JORNADA);
-    $('#texto-jornada').textContent =
-      'De ' + config.JORNADA.hora_inicio + ' a ' + config.JORNADA.hora_termino +
-      ' con ' + config.JORNADA.colacion_minutos + ' minutos de colación entre ' +
-      config.JORNADA.colacion_inicio + ' y ' + config.JORNADA.colacion_termino + ': ' +
-      Calculos.formatearNumero(horasDia, 1) + ' horas efectivas por persona y día hábil. ' +
-      'La colación se descuenta solo cuando el horario registrado cubre esa ventana, ' +
-      'para que registrar la mañana y la tarde por separado no la descuente dos veces.';
-
-    const calendario = Calculos.estadoCalendario(hoyTexto(), config.PROYECTO);
-    $('#texto-calendario').textContent =
-      'Del ' + config.PROYECTO.fecha_inicio + ' al ' + config.PROYECTO.fecha_termino + '. ' +
-      config.PROYECTO.dias_habiles_plan + ' días hábiles (lunes a viernes, sin el ' +
-      config.PROYECTO.feriados.join(' ni el ') + '). ' +
-      'Transcurridos: ' + calendario.transcurridos + '. Restantes: ' + calendario.restantes + '.';
-
-    const lista = $('#lista-fuera-app');
-    lista.innerHTML = '';
-    config.ACTIVIDADES_FUERA_DE_APP.forEach(function (a) {
-      lista.appendChild(el('li', { texto: a.codigo + ' — ' + a.nombre + ' (' + a.categoria + ')' }));
     });
 
     $('#texto-version').textContent =
-      'Aplicación ' + raiz.APP_VERSION + '. ' +
-      config.ACTIVIDADES.length + ' actividades registrables de las ' +
-      (config.ACTIVIDADES.length + config.ACTIVIDADES_FUERA_DE_APP.length) + ' de la EDT.';
-
-    comprobarPlanilla();
-  }
-
-  /**
-   * Pregunta al Apps Script en que planilla escribe.
-   *
-   * Vale la pena mostrarlo: si alguien apunto el script a otra planilla, o quedo
-   * una implementacion vieja dando vueltas, aca se ve sin tener que abrir Google.
-   */
-  function comprobarPlanilla() {
-    const ayuda = $('#ayuda-planilla');
-    const enlace = $('#enlace-planilla');
-
-    if (!Sincronizacion.leerUrl()) {
-      enlace.hidden = true;
-      ayuda.textContent =
-        'Todavía no hay dirección del Apps Script configurada, así que no se puede saber en qué planilla escribe.';
-      return;
-    }
-
-    ayuda.textContent = 'Comprobando en qué planilla escribe…';
-    Sincronizacion.comprobar().then(function (datos) {
-      if (!datos.ok || datos.estado === 'error') {
-        enlace.hidden = true;
-        ayuda.textContent = datos.mensaje || 'No se pudo comprobar la planilla.';
-        return;
-      }
-      if (datos.planilla_url) {
-        enlace.href = datos.planilla_url;
-        enlace.hidden = false;
-      }
-      ayuda.textContent =
-        'Escribe en la planilla «' + (datos.planilla_nombre || 'sin nombre') + '», hojas: ' +
-        (datos.hojas_destino || []).join(', ') + '.';
-    });
+      'Aplicación ' + raiz.APP_VERSION + ' · ' + config.ACTIVIDADES.length +
+      ' actividades registrables de las ' +
+      (config.ACTIVIDADES.length + config.ACTIVIDADES_FUERA_DE_APP.length) + ' de la EDT';
   }
 
   // ---------------------------------------------------------------------------
@@ -515,8 +455,6 @@
       prepararFormulario({ conservarActividad: false });
       ocultarMensaje('#mensaje-guardado');
     });
-
-    $('#boton-sincronizar').addEventListener('click', sincronizar);
 
     document.querySelectorAll('.nav-boton').forEach(function (boton) {
       boton.addEventListener('click', function () { irA(boton.dataset.pantalla); });

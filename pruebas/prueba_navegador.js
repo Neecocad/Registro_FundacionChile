@@ -305,12 +305,8 @@ async function main() {
   await pagina.click('.nav-boton[data-pantalla="exportar"]');
 
   const textoExportar = await pagina.textContent('#pantalla-exportar');
-  revisar('la pantalla Exportar dice donde se ven los indicadores',
-    /planilla de Google/.test(textoExportar) && /KPI/.test(textoExportar));
-  // \s+ y no un espacio: el texto viene del HTML y puede traer un salto de linea
-  // en medio de la frase.
-  revisar('se explica que las formulas se recalculan solas',
-    /recalculan\s+solas/.test(textoExportar));
+  revisar('Exportar se queda en lo suyo: respaldo y envio, sin material de referencia',
+    !/Calendario|Jornada del proyecto|Actividades fuera/.test(textoExportar), textoExportar.slice(0, 120));
 
   const descargaExcel = pagina.waitForEvent('download');
   await pagina.click('#boton-exportar-excel');
@@ -329,14 +325,6 @@ async function main() {
   revisar('el respaldo en JSON trae los registros',
     Array.isArray(contenido.registros) && contenido.registros.length === 2,
     json.suggestedFilename());
-
-  const textoJornada = await pagina.textContent('#texto-jornada');
-  revisar('se explica la jornada y el criterio de la colacion',
-    /08:00/.test(textoJornada) && /7,5/.test(textoJornada), textoJornada);
-
-  const textoFuera = await pagina.textContent('#lista-fuera-app');
-  revisar('las actividades fuera de la aplicacion quedan listadas, no escondidas',
-    /3\.1/.test(textoFuera) && /11\.3/.test(textoFuera));
 
   const textoVersion = await pagina.textContent('#texto-version');
   revisar('la pantalla muestra la version y no un "undefined"',
@@ -434,8 +422,8 @@ async function main() {
   await pagina.waitForFunction(() => !document.querySelector('#boton-sincronizar').disabled);
 
   revisar('se envia un registro por peticion', enviados.length === 2, 'se enviaron ' + enviados.length);
-  revisar('la aplicacion pregunta a la planilla en cual escribe',
-    consultas.length >= 1, 'consultas: ' + consultas.length);
+  revisar('la aplicacion no hace mas peticiones que los envios', consultas.length === 0,
+    'peticiones que no son envios: ' + consultas.length);
 
   const primero = enviados[0] || {};
   revisar('el envio va como formulario, para no gatillar la consulta previa de permisos',

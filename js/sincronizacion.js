@@ -191,25 +191,6 @@
     return enviados + ' de ' + total + ' registro(s) sincronizado(s).';
   }
 
-  /**
-   * Pregunta al Apps Script en que planilla escribe de verdad.
-   *
-   * Sirve para no depender de lo que diga el repositorio: si alguien cambio el
-   * identificador de la planilla en el script, esto lo muestra.
-   */
-  function comprobar() {
-    const url = leerUrl();
-    if (!url) return Promise.resolve({ ok: false, mensaje: 'Todavía no hay dirección configurada.' });
-    if (!hayConexion()) return Promise.resolve({ ok: false, mensaje: 'Sin conexión: no se puede comprobar ahora.' });
-
-    return fetch(url, { method: 'GET', redirect: 'follow' })
-      .then(function (r) { return r.text(); })
-      .then(function (texto) { return Object.assign({ ok: true }, JSON.parse(texto)); })
-      .catch(function (error) {
-        return { ok: false, mensaje: 'No se pudo comprobar: ' + error.message };
-      });
-  }
-
   const api = {
     CLAVE_URL: CLAVE_URL,
     DIRECCION_POR_DEFECTO: DIRECCION_POR_DEFECTO,
@@ -220,7 +201,6 @@
     hayConexion: hayConexion,
     fila: fila,
     sincronizar: sincronizar,
-    comprobar: comprobar,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

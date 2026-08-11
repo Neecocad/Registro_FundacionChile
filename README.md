@@ -34,9 +34,8 @@ sin depender de la señal. Es el mismo reparto del proyecto hermano
    horas-hombre y el rendimiento salen solos.
 3. **Registros**: la lista de lo guardado en ese teléfono. Solo para mirar y,
    si hace falta, eliminar. La pestaña muestra cuántos hay.
-4. **Exportar**: todo lo que sale del teléfono. Copia de respaldo en Excel o
-   JSON, el botón «Sincronizar ahora», el enlace a la planilla y los datos de
-   referencia del proyecto.
+4. **Exportar**: todo lo que sale del teléfono, y nada más: copia de respaldo en
+   Excel o JSON, y el botón «Sincronizar ahora».
 5. Los indicadores se miran **en la planilla**, en la hoja `KPI_MariaPinto`.
 
 El reparto entre las dos últimas pestañas viene del proyecto hermano: en

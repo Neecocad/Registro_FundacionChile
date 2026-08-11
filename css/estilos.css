@@ -395,6 +395,48 @@ textarea { min-height: 4.5rem; resize: vertical; }
 
 .nav-boton.activo { color: var(--verde-oscuro); font-weight: 700; border-bottom-color: var(--verde); }
 
+/* Conteo de registros guardados, a la vista sin tener que entrar a la pestana. */
+.insignia {
+  display: inline-block;
+  background: var(--verde);
+  color: var(--blanco);
+  border-radius: 999px;
+  padding: 0.05rem 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+/* La direccion del Apps Script se despliega solo si se necesita: en el uso
+   normal nadie la toca, y tenerla siempre a la vista invita a editarla. */
+.detalle-avanzado {
+  margin-top: 1rem;
+  border-top: 1px solid var(--gris-borde);
+  padding-top: 0.7rem;
+}
+
+.detalle-avanzado summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--verde-oscuro);
+}
+
+.boton-enlace {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.3rem;
+}
+
+.pie-version {
+  text-align: center;
+  color: var(--gris);
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin: 1.4rem 0 0.5rem;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .pantalla.activa { animation: aparecer 0.15s ease-out; }
   @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }

@@ -248,7 +248,7 @@ async function main() {
   // teléfono con señal débil, una implementación caída o mal publicada.
 
   await pagina.route('**/macros/s/**', (ruta) => ruta.abort());
-  await pagina.click('.nav-boton[data-pantalla="registros"]');
+  await pagina.click('.nav-boton[data-pantalla="exportar"]');
   await pagina.click('#boton-sincronizar');
   await pagina.waitForSelector('#mensaje-sync:not([hidden])');
 
@@ -261,7 +261,44 @@ async function main() {
     (await registros(pagina)).every((r) => r.estado_sync === 'pendiente'));
   await pagina.unroute('**/macros/s/**');
 
-  if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '3-registros.png'), fullPage: true });
+  if (CAPTURAS) {
+    await pagina.click('.nav-boton[data-pantalla="registros"]');
+    await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '3-registros.png'), fullPage: true });
+  }
+
+  // --- Estructura de Registros y Exportar -----------------------------------
+  // En Registros manda la lista; todo lo que sale del telefono (Excel, JSON y
+  // sincronizar) vive junto en Exportar.
+
+  const dondeEstan = await pagina.evaluate(() => {
+    const en = (id, pantalla) => {
+      const nodo = document.querySelector(id);
+      return !!nodo && !!nodo.closest('#pantalla-' + pantalla);
+    };
+    return {
+      sincronizarEnExportar: en('#boton-sincronizar', 'exportar'),
+      excelEnExportar: en('#boton-exportar-excel', 'exportar'),
+      jsonEnExportar: en('#boton-exportar-json', 'exportar'),
+      listaEnRegistros: en('#lista-registros', 'registros'),
+      // Los botones de cada tarjeta (eliminar) si corresponden; lo que no debe
+      // haber son botones de pantalla, como sincronizar o descargar.
+      botonesDePantalla: Array.from(document.querySelectorAll('#pantalla-registros .boton'))
+        .filter((b) => !b.closest('.tarjeta')).length,
+    };
+  });
+  revisar('sincronizar y las descargas viven en Exportar',
+    dondeEstan.sincronizarEnExportar && dondeEstan.excelEnExportar && dondeEstan.jsonEnExportar,
+    JSON.stringify(dondeEstan));
+  revisar('en Registros manda la lista: ninguna accion de pantalla compite con ella',
+    dondeEstan.listaEnRegistros && dondeEstan.botonesDePantalla === 0,
+    JSON.stringify(dondeEstan));
+
+  const insignia = await pagina.evaluate(() => {
+    const n = document.querySelector('#conteo-registros');
+    return { texto: n.textContent.trim(), oculta: n.hidden };
+  });
+  revisar('la pestaña Registros muestra cuantos hay guardados',
+    insignia.texto === '2' && !insignia.oculta, JSON.stringify(insignia));
 
   // --- Exportar -------------------------------------------------------------
 
@@ -325,7 +362,7 @@ async function main() {
   await esperarActividades(pagina);
   await pagina.click('.nav-boton[data-pantalla="registros"]');
   await pagina.click('.tarjeta button:has-text("Eliminar")');
-  await pagina.waitForSelector('#mensaje-sync:not([hidden])');
+  await pagina.waitForSelector('#mensaje-registros:not([hidden])');
 
   const trasBaja = await registros(pagina);
   revisar('borrar un registro ya sincronizado lo marca como baja en vez de hacerlo desaparecer',
@@ -333,7 +370,7 @@ async function main() {
   revisar('la baja vuelve a quedar pendiente, para que la planilla se entere',
     trasBaja[0] && trasBaja[0].estado_sync === 'pendiente');
 
-  const mensajeBaja = await pagina.textContent('#mensaje-sync');
+  const mensajeBaja = await pagina.textContent('#mensaje-registros');
   revisar('se advierte que la planilla sigue con la fila hasta sincronizar',
     /planilla/.test(mensajeBaja), mensajeBaja);
 
@@ -389,9 +426,10 @@ async function main() {
   });
 
   await pagina.click('.nav-boton[data-pantalla="exportar"]');
+  // La direccion vive dentro de un desplegable: en el uso normal nadie la toca.
+  await pagina.click('.detalle-avanzado summary');
   await pagina.fill('#url_apps_script', 'https://script.google.com/macros/s/prueba/exec');
   await pagina.click('#boton-guardar-url');
-  await pagina.click('.nav-boton[data-pantalla="registros"]');
   await pagina.click('#boton-sincronizar');
   await pagina.waitForFunction(() => !document.querySelector('#boton-sincronizar').disabled);
 

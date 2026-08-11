@@ -32,11 +32,16 @@ sin depender de la señal. Es el mismo reparto del proyecto hermano
 2. **Registrar**: elegir la actividad, revisar el horario que viene puesto,
    indicar cuántas personas trabajaron y cuánto se ejecutó. La duración, las
    horas-hombre y el rendimiento salen solos.
-3. **Registros**: revisar lo guardado y tocar «Sincronizar ahora» cuando haya
-   señal.
-4. **Exportar**: enlace a la planilla, copia de respaldo en Excel o JSON, y la
-   dirección del Apps Script.
+3. **Registros**: la lista de lo guardado en ese teléfono. Solo para mirar y,
+   si hace falta, eliminar. La pestaña muestra cuántos hay.
+4. **Exportar**: todo lo que sale del teléfono. Copia de respaldo en Excel o
+   JSON, el botón «Sincronizar ahora», el enlace a la planilla y los datos de
+   referencia del proyecto.
 5. Los indicadores se miran **en la planilla**, en la hoja `KPI_MariaPinto`.
+
+El reparto entre las dos últimas pestañas viene del proyecto hermano: en
+Registros manda la lista, sin botones que compitan con ella; en Exportar se
+junta todo lo que manda datos hacia afuera.
 
 ## La jornada
 

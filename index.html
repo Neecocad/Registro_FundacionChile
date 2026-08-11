@@ -26,7 +26,9 @@
 
   <nav class="navegacion">
     <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
-    <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
+    <button type="button" data-pantalla="registros" class="nav-boton">
+      Registros <span id="conteo-registros" class="insignia" hidden>0</span>
+    </button>
     <button type="button" data-pantalla="exportar" class="nav-boton">Exportar</button>
   </nav>
 </div>
@@ -84,18 +86,52 @@
 
   <!-- ------------------------------------------------------------------ -->
   <section id="pantalla-registros" class="pantalla">
-    <h2>Registros guardados</h2>
-    <p class="ayuda" id="resumen-registros"></p>
-    <div class="acciones acciones-linea">
-      <button type="button" class="boton boton-primario" id="boton-sincronizar">Sincronizar ahora</button>
-    </div>
-    <p id="mensaje-sync" class="mensaje" hidden></p>
+    <h2>Registros de este teléfono</h2>
+    <p id="mensaje-registros" class="mensaje" hidden></p>
     <div id="lista-registros" class="lista"></div>
   </section>
 
   <!-- ------------------------------------------------------------------ -->
   <section id="pantalla-exportar" class="pantalla">
-    <h2>Exportar y ajustes</h2>
+    <h2>Exportar y sincronizar</h2>
+
+    <div class="bloque">
+      <h3>Copia de respaldo de este teléfono</h3>
+      <p class="ayuda">
+        Sirve si un teléfono se pierde o si hay que revisar los datos sin abrir la
+        planilla. No reemplaza a la sincronización: los indicadores salen de la
+        planilla, no de estos archivos.
+      </p>
+      <div class="acciones">
+        <button type="button" class="boton boton-primario" id="boton-exportar-excel">Descargar Excel</button>
+        <button type="button" class="boton boton-secundario" id="boton-exportar-json">Descargar JSON</button>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h3>Enviar a la planilla</h3>
+      <p class="ayuda" id="resumen-registros"></p>
+      <div class="acciones">
+        <button type="button" class="boton boton-primario" id="boton-sincronizar">Sincronizar ahora</button>
+      </div>
+      <p id="mensaje-sync" class="mensaje" hidden></p>
+
+      <details class="detalle-avanzado">
+        <summary>Dirección del Apps Script</summary>
+        <p class="ayuda">
+          Normalmente no hay que tocarla: la aplicación ya viene configurada. Solo
+          se escribe aquí si se creó una implementación nueva y todavía no se ha
+          publicado una versión de la aplicación con esa dirección.
+        </p>
+        <label for="url_apps_script">Dirección</label>
+        <input type="url" id="url_apps_script" placeholder="https://script.google.com/macros/s/…/exec">
+        <div class="acciones">
+          <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar</button>
+          <button type="button" class="boton boton-secundario" id="boton-restablecer-url">Volver a la de la app</button>
+        </div>
+        <p id="mensaje-url" class="mensaje" hidden></p>
+      </details>
+    </div>
 
     <div class="bloque">
       <h3>Dónde se ven los indicadores</h3>
@@ -106,39 +142,10 @@
         solas cada vez que llega un registro nuevo. No hay que volver a ejecutar
         nada.
       </p>
-      <a id="enlace-planilla" class="boton boton-primario boton-enlace" href="#" target="_blank" rel="noopener" hidden>
+      <a id="enlace-planilla" class="boton boton-secundario boton-enlace" href="#" target="_blank" rel="noopener" hidden>
         Abrir la planilla
       </a>
       <p class="ayuda" id="ayuda-planilla"></p>
-    </div>
-
-    <div class="bloque">
-      <h3>Copia de respaldo</h3>
-      <p class="ayuda">
-        Sirve si un teléfono se pierde o si hay que revisar los datos sin abrir la
-        planilla. No reemplaza a la sincronización: los indicadores salen de la
-        planilla, no de estos archivos.
-      </p>
-      <div class="acciones">
-        <button type="button" class="boton boton-secundario" id="boton-exportar-excel">Descargar Excel</button>
-        <button type="button" class="boton boton-secundario" id="boton-exportar-json">Descargar JSON</button>
-      </div>
-    </div>
-
-    <div class="bloque">
-      <h3>Dirección de sincronización</h3>
-      <p class="ayuda">
-        La aplicación ya trae la dirección del Apps Script. Solo hay que escribirla
-        aquí si se creó una implementación nueva y todavía no se ha publicado una
-        versión de la aplicación con esa dirección.
-      </p>
-      <label for="url_apps_script">Dirección del Apps Script</label>
-      <input type="url" id="url_apps_script" placeholder="https://script.google.com/macros/s/…/exec">
-      <div class="acciones">
-        <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar dirección</button>
-        <button type="button" class="boton boton-secundario" id="boton-restablecer-url">Volver a la de la app</button>
-      </div>
-      <p id="mensaje-url" class="mensaje" hidden></p>
     </div>
 
     <div class="bloque">
@@ -161,16 +168,13 @@
       <ul id="lista-fuera-app" class="lista-simple"></ul>
     </div>
 
-    <div class="bloque">
-      <h3>Versión</h3>
-      <p id="texto-version" class="ayuda"></p>
-      <p class="ayuda">
-        Lo que está en prueba son los <strong>indicadores económicos</strong> de la
-        planilla: dependen de valores que todavía hay que cargar y de un supuesto
-        de reparto que hay que validar con la realidad del proyecto. El registro
-        en sí ya es definitivo.
-      </p>
-    </div>
+    <p class="ayuda">
+      Lo que está en prueba son los <strong>indicadores económicos</strong> de la
+      planilla: dependen de valores que todavía hay que cargar y de un supuesto de
+      reparto que hay que validar con la realidad del proyecto. El registro en sí
+      ya es definitivo.
+    </p>
+    <p id="texto-version" class="pie-version"></p>
   </section>
 
 </main>

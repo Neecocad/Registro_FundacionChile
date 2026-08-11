@@ -309,7 +309,7 @@
 
     const resultado = Almacenamiento.eliminar(registro.record_id);
     mostrarMensaje(
-      '#mensaje-sync',
+      '#mensaje-registros',
       resultado.resultado === 'marcado_para_baja'
         ? 'Registro marcado como baja. Queda pendiente de sincronizar: hasta entonces, su fila sigue vigente en la planilla.'
         : 'Registro eliminado del teléfono.',
@@ -328,8 +328,13 @@
     const activos = registros.filter(function (r) { return r.registro_activo !== false; });
     const pendientes = Almacenamiento.pendientes();
 
-    $('#resumen-registros').textContent =
-      activos.length + ' registro(s) vigente(s), ' + pendientes.length + ' pendiente(s) de sincronizar.';
+    const insignia = $('#conteo-registros');
+    insignia.textContent = String(activos.length);
+    insignia.hidden = activos.length === 0;
+
+    $('#resumen-registros').textContent = registros.length
+      ? activos.length + ' registro(s) en este teléfono · ' + pendientes.length + ' pendiente(s) de enviar.'
+      : 'Todavía no hay registros que enviar.';
 
     if (!registros.length) {
       contenedor.appendChild(

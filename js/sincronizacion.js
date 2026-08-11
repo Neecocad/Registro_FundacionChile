@@ -14,9 +14,12 @@
   // tocar telefono por telefono.
   const CLAVE_URL = 'fch-sync-url-v1';
 
-  // Se completa al implementar el Apps Script (apps-script/Codigo.gs).
-  // Mientras este vacia, la aplicacion registra igual y avisa que falta.
-  const DIRECCION_POR_DEFECTO = '';
+  // Direccion del Web App de Apps Script, implementado sobre la planilla
+  // BD_FundacionChile. Viene puesta para que ningun telefono tenga que
+  // escribirla. Si algun dia queda vacia, la aplicacion registra igual y avisa
+  // que falta configurarla.
+  const DIRECCION_POR_DEFECTO =
+    'https://script.google.com/macros/s/AKfycbz47v6QQgZuv5lRS2veZpJFBPi3gNp5CY5pw2jJJQHpo5zNQYbxWikpBttRQUfE6AG4/exec';
 
   function leerUrl() {
     try {

@@ -90,13 +90,13 @@ deja ahí.
 
 ## 3. La aplicación
 
-1. Pegar la dirección `/exec` en `js/sincronizacion.js`, en
-   `DIRECCION_POR_DEFECTO`. Así los teléfonos la traen puesta y nadie tiene que
-   escribirla.
-2. Subir el cambio.
-3. En el repositorio: **Settings → Pages** → Deploy from a branch, rama `main`,
+La dirección `/exec` ya está puesta en `js/sincronizacion.js`
+(`DIRECCION_POR_DEFECTO`), así que los teléfonos la traen y nadie tiene que
+escribirla.
+
+1. En el repositorio: **Settings → Pages** → Deploy from a branch, rama `main`,
    carpeta `/ (root)`.
-4. En el teléfono: abrir la dirección que entrega GitHub y, en el menú del
+2. En el teléfono: abrir la dirección que entrega GitHub y, en el menú del
    navegador, «Agregar a la pantalla de inicio».
 
 ### Al publicar una versión nueva

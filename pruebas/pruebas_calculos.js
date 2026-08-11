@@ -287,6 +287,16 @@ prueba('la fila trae todas las columnas base, aunque el registro no las tenga', 
   });
 });
 
+prueba('la aplicacion trae la direccion del Apps Script puesta', () => {
+  // Si viniera vacia, cada telefono tendria que escribirla a mano en Exportar, y
+  // basta que uno se salte el paso para que sus registros se queden en el
+  // dispositivo sin que nadie lo note.
+  const url = Sincronizacion.DIRECCION_POR_DEFECTO;
+  afirmar(!!url, 'DIRECCION_POR_DEFECTO esta vacia');
+  afirmar(/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url),
+    'no tiene forma de direccion de Apps Script implementada: ' + url);
+});
+
 prueba('un registro dado de baja viaja marcado como no vigente', () => {
   igual(Sincronizacion.fila(registroGuardado({ registro_activo: false }), config).registro_activo, false);
   igual(Sincronizacion.fila(registroGuardado(), config).registro_activo, true);

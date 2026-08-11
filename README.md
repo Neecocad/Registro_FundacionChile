@@ -167,10 +167,12 @@ esa comprobación también corre dentro de `node pruebas/ejecutar.js`.
 
 ## Qué falta para dejar de ser beta
 
-- **Implementar el Apps Script** y pegar la dirección `/exec` que entrega Google
-  en `DIRECCION_POR_DEFECTO` (`js/sincronizacion.js`). La planilla ya está
-  creada (**BD_FundacionChile**) y su identificador ya está en el script. Ver
-  `docs/como_publicar.md`.
+- **Comprobar la primera sincronización real.** La planilla
+  (**BD_FundacionChile**), el identificador en el Apps Script y la dirección
+  `/exec` en la aplicación ya están puestos; falta guardar un registro de prueba,
+  sincronizar y revisar que la hoja `KPI_MariaPinto` muestre números y no
+  `#ERROR!`. Ver el paso 4 de `docs/como_publicar.md`.
+- **Publicar la aplicación** en GitHub Pages.
 - Confirmar si 1.1 y 10.1 se registran en la aplicación.
 - Definir el catálogo de personas. Hoy es texto libre, y eso significa que
   «J. Pérez» y «Juan Pérez» se cuentan como dos personas distintas en la hoja

@@ -209,16 +209,24 @@ async function main() {
   revisar('«Volver a revisar» cierra los avisos sin guardar',
     !(await pagina.isVisible('#avisos')) && (await registros(pagina)).length === 2);
 
-  // --- Sincronizacion sin configurar ----------------------------------------
+  // --- Sincronizacion cuando el servidor no responde ------------------------
+  // La aplicacion trae la direccion del Apps Script puesta, asi que el caso que
+  // hay que cubrir no es "falta configurarla" sino "no se pudo llegar": un
+  // teléfono con señal débil, una implementación caída o mal publicada.
 
+  await pagina.route('**/macros/s/**', (ruta) => ruta.abort());
   await pagina.click('.nav-boton[data-pantalla="registros"]');
   await pagina.click('#boton-sincronizar');
   await pagina.waitForSelector('#mensaje-sync:not([hidden])');
+
   const mensajeSync = await pagina.textContent('#mensaje-sync');
-  revisar('sin direccion configurada, sincronizar explica que falta y no pierde nada',
-    /Exportar/.test(mensajeSync), mensajeSync);
+  revisar('si no se puede sincronizar, se dice que los registros siguen en el telefono',
+    /sigue guardado en el teléfono/.test(mensajeSync), mensajeSync);
   revisar('los registros siguen ahi despues de un intento fallido de sincronizar',
     (await registros(pagina)).length === 2);
+  revisar('nada queda marcado como sincronizado si la planilla no lo confirmo',
+    (await registros(pagina)).every((r) => r.estado_sync === 'pendiente'));
+  await pagina.unroute('**/macros/s/**');
 
   if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '3-registros.png'), fullPage: true });
 

@@ -56,10 +56,7 @@ paso('Configuracion generada', () => {
   execFileSync('python3', [generador], { cwd: RAIZ, encoding: 'utf8' });
   const despues = fs.readFileSync(archivo, 'utf8');
 
-  // La linea del sello de tiempo cambia en cada ejecucion y no dice nada.
-  const sinSello = (texto) => texto.replace(/\/\/ Generado:.*\n/, '');
-
-  if (sinSello(antes) !== sinSello(despues)) {
+  if (antes !== despues) {
     fs.writeFileSync(archivo, despues, 'utf8');
     throw new Error(
       'js/config-actividades.js no coincidia con lo que produce el generador. Se acaba de regenerar; ' +

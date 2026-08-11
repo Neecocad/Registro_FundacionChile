@@ -511,7 +511,12 @@ function _construirKPI(hoja) {
       a.meta === null ? '' : '=IFERROR(E' + r + '/D' + r + ',"")',
       a.meta === null ? '' : '=D' + r + '-E' + r,
       '=IFERROR(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + '),0)',
-      '=IFERROR(COUNTUNIQUE(FILTER(' + _ref('fecha') + ',' + edtRef + '=' + codigo + ',' + activoRef + '=TRUE)),0)',
+      // El caso "sin registros" se resuelve antes de contar: FILTER sobre un
+      // rango sin coincidencias no siempre da error, y COUNTUNIQUE llega a
+      // contar la celda vacia como un valor. Asi daba 1 dia con cero registros.
+      '=IF(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + ')=0,0,' +
+        'IFERROR(COUNTUNIQUE(FILTER(' + _ref('fecha') + ',' + edtRef + '=' + codigo + ',' +
+        activoRef + '=TRUE)),0))',
       '=IF(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + ')=0,"—",' +
         'TEXT(MAXIFS(' + _ref('fecha') + ',' + edtRef + ',' + codigo + ',' + _soloVigentes() + '),"yyyy-mm-dd"))'
     ]);
@@ -567,12 +572,12 @@ function _construirKPI(hoja) {
     var estado = a.meta === null
       ? '=IF(' + fDias + '=0,"Sin registros todavía",' +
         'IF(' + fDias + '<' + DIAS_MIN_CONFIABLE + ',"⏳ Midiendo ritmo base",' +
-        '"📊 Ritmo base: "&TEXT(D' + r + ',"#,##0.0")&" por día"))'
+        '"Ritmo base: "&TEXT(D' + r + ',"#,##0.0")&" por día"))'
       : '=IF(' + fDias + '=0,"Sin registros todavía",' +
         'IF(G' + r + '>=0,"✔ Al día o adelantado",' +
         // Cumplimiento = lo ejecutado sobre lo esperado a hoy. Con ejecutado en
         // cero da cero, que es justamente "atrasado" y no "levemente atrasado".
-        'IF(IFERROR(' + fEjecutado + '/F' + r + ',0)>=' + UMBRAL_ALERTA + ',"⚠ Levemente atrasado","🔴 Atrasado")))';
+        'IF(IFERROR(' + fEjecutado + '/F' + r + ',0)>=' + UMBRAL_ALERTA + ',"⚠ Levemente atrasado","✖ Atrasado")))';
 
     fila([
       a.edt, a.nombre,
@@ -611,7 +616,8 @@ function _construirKPI(hoja) {
   fmt(eMO, 2, PESOS);
 
   var eIndirectos = fila(['Camioneta y baños · total del proyecto',
-    '=IFERROR(SUMIF(' + HOJA_COSTOS + '!C:C,"Indirecto",' + HOJA_COSTOS + '!F:F),"")']);
+    '=IF(COUNTIFS(' + HOJA_COSTOS + '!C:C,"Indirecto",' + HOJA_COSTOS + '!D:D,"<>")=0,"",' +
+    'IFERROR(SUMIF(' + HOJA_COSTOS + '!C:C,"Indirecto",' + HOJA_COSTOS + '!F:F),""))']);
   fmt(eIndirectos, 2, PESOS);
 
   var eIndDia = fila(['Camioneta y baños · por día hábil',
@@ -623,7 +629,8 @@ function _construirKPI(hoja) {
   fmt(eIndFecha, 2, PESOS);
 
   var eExtras = fila(['Costos extras cargados',
-    '=IFERROR(SUMIF(' + HOJA_COSTOS + '!C:C,"Extra",' + HOJA_COSTOS + '!F:F),"")']);
+    '=IF(COUNTIFS(' + HOJA_COSTOS + '!C:C,"Extra",' + HOJA_COSTOS + '!D:D,"<>")=0,"",' +
+    'IFERROR(SUMIF(' + HOJA_COSTOS + '!C:C,"Extra",' + HOJA_COSTOS + '!F:F),""))']);
   fmt(eExtras, 2, PESOS);
 
   var eTotal = fila(['Costo total a la fecha',

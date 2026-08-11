@@ -356,7 +356,11 @@ prueba('ninguna suma del KPI incluye los registros dados de baja', () => {
   const letraActivo = letraDeColumna(entorno.api.COLUMNAS.indexOf('registro_activo') + 1);
   const marca = "'" + entorno.api.HOJA_REGISTROS + "'!" + letraActivo + '2:' + letraActivo;
 
-  const sumas = hojas(entorno).kpi.formulas().filter((f) => /SUMIFS|COUNTIFS|AVERAGEIFS|MAXIFS/.test(f));
+  // Solo las que miran la hoja de registros: hay COUNTIFS que consultan la hoja
+  // de costos, donde este filtro no tiene sentido.
+  const sumas = hojas(entorno).kpi.formulas()
+    .filter((f) => /SUMIFS|COUNTIFS|AVERAGEIFS|MAXIFS/.test(f))
+    .filter((f) => f.indexOf("'" + entorno.api.HOJA_REGISTROS + "'!") !== -1);
   afirmar(sumas.length > 0, 'no hay sumas en el KPI');
   sumas.forEach((f) => {
     afirmar(f.indexOf(marca + ',TRUE') !== -1, 'esta formula sumaria registros dados de baja: ' + f);
@@ -440,6 +444,57 @@ prueba('el costo por unidad separa el dato duro de la estimacion', () => {
   afirmar(/dato duro/.test(texto), 'falta decir cual es el dato duro');
   afirmar(/estimación/.test(texto), 'falta decir cual es la estimacion');
   afirmar(/COSTO POR UNIDAD EJECUTADA/.test(texto), 'falta la seccion de costo por unidad');
+});
+
+prueba('sin registros, los dias con registro son cero y no uno', () => {
+  // Visto en la planilla real: FILTER sobre un rango sin coincidencias no
+  // siempre devuelve error, y COUNTUNIQUE llegaba a contar la celda vacia como
+  // un valor. Eso daba "1 dia con registro" con cero registros, y de ahi salia
+  // un "Atrasado" el primer dia del proyecto, sin nada medido todavia.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const conteos = hojas(entorno).kpi.formulas().filter((f) => f.indexOf('COUNTUNIQUE') !== -1);
+  afirmar(conteos.length >= 11, 'falta la columna de dias con registro');
+  conteos.forEach((f) => {
+    afirmar(/^=IF\(COUNTIFS/.test(f), 'el caso sin registros tiene que resolverse antes de contar: ' + f);
+  });
+});
+
+prueba('los indirectos quedan en blanco mientras no haya nada cargado', () => {
+  // Un cero se lee como "la camioneta cuesta cero", no como "todavia no lo se".
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const formulas = hojas(entorno).kpi.formulas();
+  const indirectos = formulas.filter((f) => /SUMIF\(Costos_MariaPinto!C:C,"Indirecto"/.test(f));
+  const extras = formulas.filter((f) => /SUMIF\(Costos_MariaPinto!C:C,"Extra"/.test(f));
+
+  igual(indirectos.length, 1);
+  igual(extras.length, 1);
+  indirectos.concat(extras).forEach((f) => {
+    afirmar(/^=IF\(COUNTIFS/.test(f), 'debe devolver vacio si no hay ningun monto cargado: ' + f);
+  });
+});
+
+prueba('nada de lo que se escribe usa simbolos fuera del plano basico', () => {
+  // Visto en la planilla real: el circulo rojo aparecia como "ð´". Los
+  // caracteres sobre U+FFFF se parten en dos al llegar a la celda. La
+  // comprobacion afirma la propiedad, no la lista de emojis conocidos.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  entorno.api._asegurarCostos(entorno.planilla);
+
+  const rotos = [];
+  entorno.planilla.getSheets().forEach((hoja) => {
+    hoja.datos.forEach((fila) => (fila || []).forEach((celda) => {
+      if (typeof celda !== 'string') return;
+      for (const caracter of celda) {
+        if (caracter.codePointAt(0) > 0xffff) rotos.push(caracter + ' en «' + celda.slice(0, 60) + '»');
+      }
+    }));
+  });
+  igual(rotos.length, 0, 'se escriben caracteres que la celda parte en dos: ' + rotos.join(' | '));
 });
 
 prueba('el KPI no da un costo total cuando faltan valores por cargar', () => {

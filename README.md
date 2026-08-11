@@ -167,9 +167,10 @@ esa comprobación también corre dentro de `node pruebas/ejecutar.js`.
 
 ## Qué falta para dejar de ser beta
 
-- **Crear la planilla y pegar su identificador** en `ID_PLANILLA`
-  (`apps-script/Codigo.gs`), implementar el Web App y pegar su dirección en
-  `DIRECCION_POR_DEFECTO` (`js/sincronizacion.js`). Ver `docs/como_publicar.md`.
+- **Implementar el Apps Script** y pegar la dirección `/exec` que entrega Google
+  en `DIRECCION_POR_DEFECTO` (`js/sincronizacion.js`). La planilla ya está
+  creada (**BD_FundacionChile**) y su identificador ya está en el script. Ver
+  `docs/como_publicar.md`.
 - Confirmar si 1.1 y 10.1 se registran en la aplicación.
 - Definir el catálogo de personas. Hoy es texto libre, y eso significa que
   «J. Pérez» y «Juan Pérez» se cuentan como dos personas distintas en la hoja

@@ -184,11 +184,26 @@ prueba('un envio de otro tipo se rechaza sin escribir nada', () => {
 });
 
 prueba('sin identificador de planilla configurado, el script se niega y lo dice', () => {
-  const entorno = cargarScript({ idPlanilla: null });
+  // Se fuerza el marcador de posicion para comprobar el rechazo: asi la
+  // proteccion sigue verificada aunque el archivo del repositorio ya tenga un
+  // identificador real escrito.
+  const entorno = cargarScript({ idPlanilla: 'PEGA_AQUI_EL_ID_DE_LA_PLANILLA' });
   const resultado = enviar(entorno.api, registro());
 
   igual(resultado.estado, 'error');
   afirmar(/ID_PLANILLA/.test(resultado.mensaje), resultado.mensaje);
+});
+
+prueba('el script del repositorio ya apunta a una planilla concreta', () => {
+  // Un script sin configurar rechaza en silencio cada sincronizacion: la
+  // aplicacion muestra un error y nadie sabe que lo unico que falta es pegar el
+  // identificador.
+  const texto = fs.readFileSync(RUTA_SCRIPT, 'utf8');
+  const id = (texto.match(/var ID_PLANILLA = '([^']+)'/) || [])[1];
+
+  afirmar(!!id, 'no se encontro ID_PLANILLA en el script');
+  afirmar(id !== 'PEGA_AQUI_EL_ID_DE_LA_PLANILLA', 'el identificador de la planilla sigue sin completar');
+  afirmar(id.length > 20, 'el identificador no tiene forma de identificador de Drive: ' + id);
 });
 
 prueba('el bloqueo se suelta siempre, incluso cuando el envio se rechaza', () => {

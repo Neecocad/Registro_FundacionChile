@@ -32,7 +32,9 @@
  */
 
 // ⚠️ ÚNICO valor que hay que cambiar para apuntar a otra planilla.
-var ID_PLANILLA = 'PEGA_AQUI_EL_ID_DE_LA_PLANILLA';
+// Planilla "BD_FundacionChile". El identificador es lo que va entre /d/ y /edit
+// en su dirección.
+var ID_PLANILLA = '1v-BkUtDlt0qpXI6W09fueU8brj7Jpn9Sz2RHus9BZjs';
 
 var PROYECTO_ID = 'FCH_MARIA_PINTO';
 var NOMBRE_PROYECTO = 'Fundación Chile - María Pinto';

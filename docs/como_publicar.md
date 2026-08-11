@@ -8,12 +8,17 @@ mantiene las hojas calculadas de la planilla.
 
 ## 1. La planilla
 
-1. Crear una planilla de Google para el proyecto (o abrir la que se vaya a usar).
-2. Copiar su identificador: es lo que va entre `/d/` y `/edit` en la dirección.
+Ya está creada: **BD_FundacionChile**, y su identificador ya está escrito en
+`apps-script/Codigo.gs` (`ID_PLANILLA`). No hay nada que hacer en este paso.
 
 No hay que crear ninguna hoja a mano. El script crea las tres que necesita
 (`Registros_MariaPinto`, `KPI_MariaPinto`, `Costos_MariaPinto`) la primera vez
-que llega un registro.
+que llega un registro. La «Hoja 1» que trae la planilla nueva se puede dejar
+donde está o renombrar; el script no la toca.
+
+Si algún día hay que apuntar a otra planilla, se cambia `ID_PLANILLA`: es lo que
+va entre `/d/` y `/edit` en la dirección de la planilla. Es el único valor que
+hay que tocar.
 
 ---
 
@@ -28,14 +33,14 @@ que llega un registro.
    ocupado por otra aplicación que escriba en otras hojas de la misma planilla.
 
 2. Borrar lo que traiga el editor y pegar el contenido completo de
-   `apps-script/Codigo.gs`.
-3. Reemplazar `PEGA_AQUI_EL_ID_DE_LA_PLANILLA` por el identificador del paso 1.
-4. Guardar.
-5. **Implementar → Nueva implementación → Aplicación web**:
+   `apps-script/Codigo.gs`. Ya viene con el identificador de la planilla puesto.
+3. Guardar.
+4. **Implementar → Nueva implementación → Aplicación web**:
    - Ejecutar como: **Yo**
    - Quién tiene acceso: **Cualquier persona**
-6. Autorizar los permisos que pida Google.
-7. Copiar la dirección que termina en `/exec`.
+5. Autorizar los permisos que pida Google. Va a pedir permiso para ver y
+   administrar planillas: es para poder escribir en BD_FundacionChile.
+6. Copiar la dirección que termina en `/exec`.
 
 > Si «Quién tiene acceso» queda en cualquier otra opción, Google responde con una
 > página de inicio de sesión en vez de datos. La aplicación detecta ese caso y lo
@@ -52,9 +57,7 @@ aparece otra planilla, el resto no tiene sentido.
 **Este paso hay que recordarlo siempre: cambiar el archivo en el repositorio no
 cambia nada en Google.**
 
-1. Pegar el contenido nuevo en el editor de Apps Script (recordando volver a
-   poner el identificador de la planilla, que en el repositorio va sin
-   completar).
+1. Pegar el contenido nuevo en el editor de Apps Script.
 2. Guardar.
 3. **Implementar → Administrar implementaciones** → editar (el lápiz) la que ya
    existe → Versión: **Nueva versión** → Implementar.

@@ -367,6 +367,26 @@ prueba('ninguna suma del KPI incluye los registros dados de baja', () => {
   });
 });
 
+prueba('las tablas de detalle tampoco incluyen los registros dados de baja', () => {
+  // Visto en la planilla real: las tablas por sector, por persona y dia a dia
+  // sumaban un registro dado de baja que el resto del KPI si excluia. La
+  // comprobacion anterior solo miraba las formulas de suma, no las de QUERY, y
+  // el numero equivocado se veia perfectamente creible.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const letraActivo = letraDeColumna(entorno.api.COLUMNAS.indexOf('registro_activo') + 1);
+  const marca = "'" + entorno.api.HOJA_REGISTROS + "'!" + letraActivo + '2:' + letraActivo;
+
+  const tablas = hojas(entorno).kpi.formulas().filter((f) => f.indexOf('QUERY(') !== -1);
+  igual(tablas.length, 3, 'deben ser las tres tablas de detalle');
+  tablas.forEach((f) => {
+    afirmar(f.indexOf('FILTER(') !== -1, 'la tabla no filtra nada: ' + f.slice(0, 80));
+    afirmar(f.indexOf(marca + '=TRUE') !== -1,
+      'la tabla sumaria los registros dados de baja: ' + f.slice(0, 120));
+  });
+});
+
 prueba('las formulas se escriben en notacion inglesa', () => {
   // Escritas en español quedan como #ERROR! en la celda y el indicador
   // simplemente no aparece, sin que nada lo advierta.

@@ -247,9 +247,17 @@
 
   function tarjetaRegistro(registro) {
     const baja = registro.registro_activo === false;
+    const sincronizado = registro.estado_sync === 'sincronizado';
+
+    // Una baja ya enviada no puede seguir diciendo "pendiente de enviar": la
+    // planilla ya la tiene, y el aviso haria pensar que se va a mandar de nuevo
+    // en cada sincronizacion.
     const marca = baja
-      ? el('span', { clase: 'marca marca-baja', texto: 'baja pendiente de enviar' })
-      : registro.estado_sync === 'sincronizado'
+      ? el('span', {
+          clase: 'marca marca-baja',
+          texto: sincronizado ? 'dado de baja en la planilla' : 'baja pendiente de enviar',
+        })
+      : sincronizado
         ? el('span', { clase: 'marca marca-sincronizado', texto: 'sincronizado' })
         : el('span', { clase: 'marca marca-pendiente', texto: 'pendiente' });
 

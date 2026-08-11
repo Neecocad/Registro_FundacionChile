@@ -397,6 +397,10 @@ async function main() {
   revisar('se advierte que la planilla sigue con la fila hasta sincronizar',
     /planilla/.test(mensajeBaja), mensajeBaja);
 
+  const marcaAntes = await pagina.textContent('#lista-registros .marca');
+  revisar('mientras no se envie, la baja se muestra como pendiente',
+    /pendiente de enviar/.test(marcaAntes), marcaAntes);
+
   // --- Sin conexion ---------------------------------------------------------
 
   await contexto.setOffline(true);
@@ -489,6 +493,14 @@ async function main() {
     trasSync.every((r) => r.estado_sync === 'sincronizado'),
     JSON.stringify(trasSync.map((r) => r.estado_sync)));
 
+  await pagina.click('.nav-boton[data-pantalla="registros"]');
+  const marcasTrasSync = await pagina.$$eval('#lista-registros .marca', (n) => n.map((m) => m.textContent));
+  revisar('una baja ya enviada deja de decir que esta pendiente',
+    !marcasTrasSync.some((m) => /pendiente/.test(m)), JSON.stringify(marcasTrasSync));
+  revisar('la baja enviada se muestra como dada de baja en la planilla',
+    marcasTrasSync.some((m) => /dado de baja en la planilla/.test(m)), JSON.stringify(marcasTrasSync));
+
+  await pagina.click('.nav-boton[data-pantalla="exportar"]');
   const chipPendientes = await pagina.textContent('#estado-pendientes');
   revisar('el aviso de pendientes desaparece al quedar todo sincronizado',
     /Todo sincronizado/.test(chipPendientes), chipPendientes);

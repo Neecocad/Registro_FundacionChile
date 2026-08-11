@@ -55,7 +55,7 @@ var HOJA_COSTOS = 'Costos_MariaPinto';
  * para siempre: el script corta apenas ve la misma versión guardada, sin dar
  * ningún error.
  */
-var KPI_VERSION = '1';
+var KPI_VERSION = '2';
 
 // Jornada del proyecto: 08:00 a 16:00 con 30 minutos de colación.
 var HORAS_JORNADA = 7.5;
@@ -749,9 +749,19 @@ function _construirKPI(hoja) {
   hoja.setFrozenRows(2);
 }
 
-/** Arma un QUERY sobre varias columnas de la hoja de registros. */
+/**
+ * Arma un QUERY sobre varias columnas de la hoja de registros, dejando fuera los
+ * registros dados de baja.
+ *
+ * El filtro va en un FILTER y no en el "where" del propio QUERY: FILTER usa las
+ * reglas de la planilla, donde comparar contra TRUE funciona siempre. El "where"
+ * del QUERY depende de que adivine bien el tipo de la columna, y si lo toma como
+ * texto la condicion no filtra nada y la tabla vuelve a incluir las bajas, sin
+ * dar ningun error.
+ */
 function _query(columnas, consulta) {
-  return '=IFERROR(QUERY({' + columnas.join(',') + '},"' + consulta + '",0),"Sin registros todavía")';
+  return '=IFERROR(QUERY(FILTER({' + columnas.join(',') + '},' + _ref('registro_activo') + '=TRUE),"' +
+    consulta + '",0),"Sin registros todavía")';
 }
 
 // Se exporta para poder ejecutar el script contra una planilla simulada en Node

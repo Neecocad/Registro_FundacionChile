@@ -1,4 +1,8 @@
-// Pruebas de los calculos y de la configuracion generada desde la EDT.
+// Pruebas de lo que hace la aplicacion: calcular la jornada, avisar cuando algo
+// se ve raro y armar la fila que viaja a la planilla.
+//
+// Los indicadores no se prueban aca porque la aplicacion no los calcula: viven
+// en la planilla y se prueban en pruebas/pruebas_apps_script.js.
 //
 //   node pruebas/pruebas_calculos.js
 
@@ -6,6 +10,7 @@ const path = require('path');
 const { prueba, afirmar, igual, cercano, esNulo, ejecutar } = require('./ayuda');
 
 const Calculos = require(path.join(__dirname, '..', 'js', 'calculos.js'));
+const Sincronizacion = require(path.join(__dirname, '..', 'js', 'sincronizacion.js'));
 const config = require(path.join(__dirname, '..', 'js', 'config-actividades.js'));
 
 const JORNADA = config.JORNADA;
@@ -44,8 +49,8 @@ prueba('un tramo que cubre parte de la ventana descuenta solo esa parte', () => 
 });
 
 prueba('las horas invertidas no producen una jornada valida', () => {
-  // Este es el caso real del proyecto hermano: 15:00 a 07:30 daba 16,5 horas y
-  // reportaba la mitad del rendimiento, sin advertir nada.
+  // Caso real del proyecto hermano: 15:00 a 07:30 daba 16,5 horas y reportaba la
+  // mitad del rendimiento, sin advertir nada.
   const d = Calculos.calcularDuracion('15:00', '07:30', JORNADA);
   esNulo(d.horas, 'no debe entregar una duracion');
   afirmar(d.error && d.error.indexOf('anterior') !== -1, 'debe explicar que la hora de termino es anterior');
@@ -65,6 +70,18 @@ prueba('las horas-hombre son la duracion por la cantidad de trabajadores', () =>
 
 prueba('la jornada estandar del proyecto es de 7,5 horas', () => {
   igual(Calculos.horasJornadaEstandar(JORNADA), 7.5);
+});
+
+prueba('el rendimiento del registro se guarda en sus dos bases', () => {
+  const r = Calculos.rendimientos(45, 60, JORNADA);
+  cercano(r.porHoraHombre, 0.75);
+  cercano(r.porJornada, 0.75 * 7.5, 0.0001);
+});
+
+prueba('sin horas-hombre no hay rendimiento, y no se rellena con cero', () => {
+  const r = Calculos.rendimientos(45, 0, JORNADA);
+  esNulo(r.porHoraHombre);
+  esNulo(r.porJornada);
 });
 
 // ---------------------------------------------------------------------------
@@ -124,14 +141,19 @@ function registroNormal(cambios) {
 prueba('CASO DE CONTROL: una jornada normal no produce ningun aviso', () => {
   // Si esta comprobacion falla, el sistema molesta en el uso habitual y los
   // avisos se aprenden a cerrar sin leer. Vale mas que cualquier otra de aca.
-  const avisos = Calculos.revisarRegistro(registroNormal(), actividadConMeta, PROYECTO, JORNADA);
+  const avisos = Calculos.revisarRegistro(registroNormal(), actividadConMeta, PROYECTO, JORNADA, 0);
+  igual(avisos.length, 0, 'avisos inesperados: ' + JSON.stringify(avisos.map((a) => a.mensaje)));
+});
+
+prueba('CASO DE CONTROL: con acumulado a medio camino tampoco hay avisos', () => {
+  const avisos = Calculos.revisarRegistro(registroNormal(), actividadConMeta, PROYECTO, JORNADA, 900);
   igual(avisos.length, 0, 'avisos inesperados: ' + JSON.stringify(avisos.map((a) => a.mensaje)));
 });
 
 prueba('las horas invertidas producen un error', () => {
   const avisos = Calculos.revisarRegistro(
     registroNormal({ hora_inicio: '15:00', hora_termino: '07:30' }),
-    actividadConMeta, PROYECTO, JORNADA
+    actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.nivel === 'error'), 'debe haber al menos un error');
 });
@@ -139,209 +161,135 @@ prueba('las horas invertidas producen un error', () => {
 prueba('una cantidad muy superior a la referencia avisa sin bloquear', () => {
   const avisos = Calculos.revisarRegistro(
     registroNormal({ cantidad_ejecutada: 500 }),
-    actividadConMeta, PROYECTO, JORNADA
+    actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.campo === 'cantidad_ejecutada'), 'debe avisar por la cantidad');
   afirmar(!avisos.some((a) => a.nivel === 'error'), 'no debe bloquear el guardado');
 });
 
-prueba('una actividad sin meta no genera aviso por cantidad', () => {
+prueba('superar la meta con el acumulado avisa', () => {
+  // En el proyecto hermano existia una funcion que calculaba este acumulado —lo
+  // decia su propio comentario— pero no se llamaba desde ninguna parte, asi que
+  // el aviso nunca aparecio. Aca se comprueba que el aviso existe de verdad.
+  const avisos = Calculos.revisarRegistro(
+    registroNormal({ cantidad_ejecutada: 45 }),
+    actividadConMeta, PROYECTO, JORNADA, 1790
+  );
+  const acumulado = avisos.filter((a) => /acumulado/.test(a.mensaje));
+  igual(acumulado.length, 1, 'debe avisar que el acumulado pasa la meta');
+  afirmar(/1.835/.test(acumulado[0].mensaje), 'debe mostrar el acumulado que queda: ' + acumulado[0].mensaje);
+  afirmar(!avisos.some((a) => a.nivel === 'error'), 'no bloquea');
+});
+
+prueba('una actividad sin meta no genera aviso por cantidad ni por acumulado', () => {
   // Sin valor de referencia no hay nada contra que comparar; inventar un numero
   // seria peor que no decir nada.
   const avisos = Calculos.revisarRegistro(
     registroNormal({ cantidad_ejecutada: 99999 }),
-    actividadSinMeta, PROYECTO, JORNADA
+    actividadSinMeta, PROYECTO, JORNADA, 500000
   );
   igual(avisos.filter((a) => a.campo === 'cantidad_ejecutada').length, 0);
 });
 
 prueba('registrar un sabado avisa', () => {
   const avisos = Calculos.revisarRegistro(
-    registroNormal({ fecha: '2026-08-15' }),
-    actividadConMeta, PROYECTO, JORNADA
+    registroNormal({ fecha: '2026-08-15' }), actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.campo === 'fecha'));
 });
 
 prueba('una fecha fuera del periodo del proyecto avisa', () => {
   const avisos = Calculos.revisarRegistro(
-    registroNormal({ fecha: '2026-11-20' }),
-    actividadConMeta, PROYECTO, JORNADA
+    registroNormal({ fecha: '2026-11-20' }), actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.campo === 'fecha'));
 });
 
 prueba('una jornada mas larga que la estandar avisa', () => {
   const avisos = Calculos.revisarRegistro(
-    registroNormal({ hora_termino: '19:00' }),
-    actividadConMeta, PROYECTO, JORNADA
+    registroNormal({ hora_termino: '19:00' }), actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.campo === 'hora_termino' || a.campo === 'hora_inicio'));
 });
 
 prueba('cero trabajadores es un error', () => {
   const avisos = Calculos.revisarRegistro(
-    registroNormal({ cantidad_trabajadores: 0 }),
-    actividadConMeta, PROYECTO, JORNADA
+    registroNormal({ cantidad_trabajadores: 0 }), actividadConMeta, PROYECTO, JORNADA, 0
   );
   afirmar(avisos.some((a) => a.nivel === 'error' && a.campo === 'cantidad_trabajadores'));
 });
 
 // ---------------------------------------------------------------------------
-// Indicadores de rendimiento
+// La fila que viaja a la planilla
 // ---------------------------------------------------------------------------
 
 function registroGuardado(cambios) {
   return Object.assign(
     {
-      record_id: 'r-' + Math.random().toString(16).slice(2),
+      record_id: 'aaaa-1111',
       codigo_edt: '2.1',
+      actividad: 'Trazado y replanteo de zanjas',
+      categoria: 'Conservación de suelos y aguas',
+      unidad_medida: 'N° de zanjas marcadas',
       fecha: '2026-08-12',
+      persona_que_registra: 'Persona de prueba',
       sector: 'LAS_MERCEDES',
       cantidad_trabajadores: 8,
+      hora_inicio: '08:00',
+      hora_termino: '16:00',
+      minutos_colacion: 30,
       duracion_horas: 7.5,
       horas_hombre: 60,
       cantidad_ejecutada: 45,
+      rendimiento_por_hh: 0.75,
+      rendimiento_por_jornada: 5.625,
       registro_activo: true,
+      detalle: { cantidad_zanjas_marcadas: 45 },
     },
     cambios || {}
   );
 }
 
-prueba('el rendimiento por hora-hombre sale de lo ejecutado sobre las horas-hombre', () => {
-  const i = Calculos.indicadoresActividad([registroGuardado()], actividadConMeta, PROYECTO, '2026-08-12');
-  cercano(i.rendimientoPorHH, 45 / 60);
-  cercano(i.hhPorUnidad, 60 / 45);
-  cercano(i.rendimientoCuadrilla, 45 / 7.5);
-  cercano(i.tamanoMedioCuadrilla, 8);
+prueba('a la planilla viaja el nombre visible del sector, no su codigo', () => {
+  const fila = Sincronizacion.fila(registroGuardado(), config);
+  igual(fila.sector, 'Las Mercedes');
 });
 
-prueba('los registros dados de baja no suman en los indicadores', () => {
-  const registros = [registroGuardado(), registroGuardado({ registro_activo: false })];
-  const i = Calculos.indicadoresActividad(registros, actividadConMeta, PROYECTO, '2026-08-12');
-  igual(i.registros, 1);
-  igual(i.avanceAcumulado, 45);
+prueba('la fila lleva la meta vigente de la actividad', () => {
+  igual(Sincronizacion.fila(registroGuardado(), config).meta_vigente, 1800);
+  igual(
+    Sincronizacion.fila(registroGuardado({ codigo_edt: '2.4' }), config).meta_vigente,
+    '',
+    'una actividad sin meta no inventa una'
+  );
 });
 
-prueba('el porcentaje de avance usa la meta de la EDT', () => {
-  const registros = [registroGuardado({ cantidad_ejecutada: 900 })];
-  const i = Calculos.indicadoresActividad(registros, actividadConMeta, PROYECTO, '2026-08-12');
-  cercano(i.porcentajeAvance, 0.5, 0.0001);
-  igual(i.meta, 1800);
+prueba('los campos propios de la actividad viajan cada uno en su columna', () => {
+  const fila = Sincronizacion.fila(registroGuardado(), config);
+  igual(fila.cantidad_zanjas_marcadas, 45);
+  afirmar(!('detalle' in fila), 'el detalle no viaja anidado');
 });
 
-prueba('una actividad sin meta no entrega porcentaje ni desviacion', () => {
-  const registros = [registroGuardado({ codigo_edt: '2.4', cantidad_ejecutada: 120 })];
-  const i = Calculos.indicadoresActividad(registros, actividadSinMeta, PROYECTO, '2026-08-12');
-  igual(i.avanceAcumulado, 120, 'lo medido si se muestra');
-  esNulo(i.porcentajeAvance, 'no hay porcentaje');
-  esNulo(i.desviacionAvance, 'no hay desviacion');
-  esNulo(i.ritmoRequeridoRestante, 'no hay ritmo requerido');
+prueba('un campo propio no puede pisar una columna base', () => {
+  // Si una actividad definiera un parametro llamado igual que una columna base,
+  // el valor base es el que manda: perderlo desalinearia toda la fila.
+  const fila = Sincronizacion.fila(
+    registroGuardado({ detalle: { cantidad_ejecutada: 999, cantidad_zanjas_marcadas: 45 } }),
+    config
+  );
+  igual(fila.cantidad_ejecutada, 45, 'debe conservar el valor canonico');
 });
 
-prueba('la desviacion negativa indica atraso frente al ritmo lineal', () => {
-  // Al 2026-09-07 van 20 dias habiles de 36: lo esperado son 1000 zanjas.
-  const registros = [registroGuardado({ cantidad_ejecutada: 400 })];
-  const i = Calculos.indicadoresActividad(registros, actividadConMeta, PROYECTO, '2026-09-07');
-  igual(i.diasHabilesTranscurridos, 20);
-  cercano(i.avanceEsperado, 1800 * 20 / 36, 0.001);
-  afirmar(i.desviacionAvance < 0, 'debe salir negativa');
-});
-
-prueba('el ritmo requerido reparte lo que falta entre los dias habiles restantes', () => {
-  const registros = [registroGuardado({ cantidad_ejecutada: 800 })];
-  const i = Calculos.indicadoresActividad(registros, actividadConMeta, PROYECTO, '2026-09-07');
-  cercano(i.ritmoRequeridoRestante, (1800 - 800) / i.diasHabilesRestantes, 0.001);
-});
-
-prueba('sin registros los indicadores quedan en blanco y no en cero', () => {
-  const i = Calculos.indicadoresActividad([], actividadConMeta, PROYECTO, '2026-08-12');
-  esNulo(i.avanceAcumulado, 'cero se leeria como "se midio cero"');
-  esNulo(i.rendimientoPorHH);
-  esNulo(i.horasHombre);
-});
-
-prueba('el desglose por sector no reparte la meta del proyecto', () => {
-  const registros = [
-    registroGuardado({ sector: 'LAS_MERCEDES', cantidad_ejecutada: 100 }),
-    registroGuardado({ sector: 'IBACACHE', cantidad_ejecutada: 60 }),
-  ];
-  const porSector = Calculos.indicadoresPorSector(registros, actividadConMeta, PROYECTO, '2026-08-12');
-  igual(porSector.length, 2);
-  porSector.forEach((s) => esNulo(s.porcentajeAvance, 'la meta es del proyecto, no de cada sector'));
-});
-
-// ---------------------------------------------------------------------------
-// Indicadores economicos
-// ---------------------------------------------------------------------------
-
-prueba('sin valores cargados no hay ningun numero economico', () => {
-  const eco = Calculos.indicadoresEconomicos([registroGuardado()], Calculos.costosVacios(), PROYECTO, '2026-08-12');
-  esNulo(eco.manoObra);
-  esNulo(eco.indirectosALaFecha);
-  esNulo(eco.costoALaFecha);
-  igual(eco.faltantes.length, 3, 'debe nombrar los tres valores que faltan');
-});
-
-prueba('el costo de mano de obra sale de las horas-hombre por el valor de la hora', () => {
-  const costos = Object.assign(Calculos.costosVacios(), { costo_hh: 4000 });
-  const eco = Calculos.indicadoresEconomicos([registroGuardado()], costos, PROYECTO, '2026-08-12');
-  igual(eco.horasHombreTotales, 60);
-  igual(eco.manoObra, 240000);
-  igual(eco.costoALaFechaCompleto, false, 'todavia faltan los indirectos');
-});
-
-prueba('un arriendo mensual se lleva al total del proyecto', () => {
-  const meses = Calculos.mesesDelProyecto(PROYECTO);
-  afirmar(meses > 1.6 && meses < 1.8, 'el proyecto dura poco menos de dos meses, dio ' + meses);
-  const total = Calculos.montoTotalProyecto(600000, 'mes', PROYECTO);
-  cercano(total, 600000 * meses, 1);
-});
-
-prueba('un monto por dia habil se multiplica por los dias del plan', () => {
-  igual(Calculos.montoTotalProyecto(30000, 'dia_habil', PROYECTO), 30000 * 36);
-});
-
-prueba('un monto declarado como total del proyecto no se multiplica', () => {
-  igual(Calculos.montoTotalProyecto(1000000, 'proyecto', PROYECTO), 1000000);
-});
-
-prueba('con todos los valores cargados el costo a la fecha se declara completo', () => {
-  const costos = Object.assign(Calculos.costosVacios(), {
-    costo_hh: 4000,
-    camioneta_monto: 600000,
-    camioneta_periodicidad: 'mes',
-    banos_monto: 200000,
-    banos_periodicidad: 'mes',
-    extras: [{ concepto: 'Combustible', monto: 150000 }],
+prueba('la fila trae todas las columnas base, aunque el registro no las tenga', () => {
+  const fila = Sincronizacion.fila({ record_id: 'x', codigo_edt: '2.1' }, config);
+  Sincronizacion.CAMPOS.forEach((campo) => {
+    afirmar(campo in fila, 'falta la columna ' + campo);
   });
-  const eco = Calculos.indicadoresEconomicos([registroGuardado()], costos, PROYECTO, '2026-09-07');
-  igual(eco.costoALaFechaCompleto, true);
-  afirmar(eco.costoALaFecha > eco.manoObra, 'debe sumar los indirectos y los extras');
-  igual(eco.faltantes.length, 0);
 });
 
-prueba('el costo unitario de mano de obra es lo ejecutado sobre el gasto en personas', () => {
-  const costos = Object.assign(Calculos.costosVacios(), { costo_hh: 4000 });
-  const economia = Calculos.economiaActividad([registroGuardado()], actividadConMeta, costos, PROYECTO, '2026-08-12');
-  igual(economia.costoManoObra, 240000);
-  cercano(economia.costoUnitarioManoObra, 240000 / 45, 0.001);
-  esNulo(economia.indirectosAsignados, 'sin arriendos cargados no se reparte nada');
-});
-
-prueba('los indirectos se reparten entre actividades segun sus horas-hombre', () => {
-  const costos = Object.assign(Calculos.costosVacios(), {
-    costo_hh: 4000,
-    camioneta_monto: 100000,
-    camioneta_periodicidad: 'proyecto',
-  });
-  const registros = [
-    registroGuardado({ codigo_edt: '2.1', horas_hombre: 60 }),
-    registroGuardado({ codigo_edt: '2.4', horas_hombre: 20, cantidad_ejecutada: 30 }),
-  ];
-  const a = Calculos.economiaActividad(registros, actividadConMeta, costos, PROYECTO, '2026-09-07');
-  const b = Calculos.economiaActividad(registros, actividadSinMeta, costos, PROYECTO, '2026-09-07');
-  cercano(a.indirectosAsignados / b.indirectosAsignados, 3, 0.001, '60 HH contra 20 HH');
+prueba('un registro dado de baja viaja marcado como no vigente', () => {
+  igual(Sincronizacion.fila(registroGuardado({ registro_activo: false }), config).registro_activo, false);
+  igual(Sincronizacion.fila(registroGuardado(), config).registro_activo, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -425,7 +373,7 @@ prueba('los dos sectores de la EDT estan en el catalogo', () => {
 });
 
 if (require.main === module) {
-  process.exit(ejecutar('Calculos y configuracion') > 0 ? 1 : 0);
+  process.exit(ejecutar('Aplicacion: jornada, avisos y fila de salida') > 0 ? 1 : 0);
 }
 
 module.exports = { ejecutar };

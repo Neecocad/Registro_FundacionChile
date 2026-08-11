@@ -70,7 +70,47 @@ paso('Configuracion generada', () => {
   console.log('  ok   la configuracion coincide con la planilla de especificacion');
 });
 
-// 3. Calculos y 4. Apps Script ---------------------------------------------
+// 3. El service worker guarda todo lo que la aplicacion carga ---------------
+//
+// Un archivo que index.html carga y sw.js no guarda hace que la aplicacion se
+// rompa justo cuando mas se necesita: sin senal, en terreno. Y al reves, un
+// archivo listado que ya no existe hace fallar la instalacion completa del
+// service worker, dejando todo sin cache.
+
+paso('Archivos sin conexion', () => {
+  console.log('\nArchivos que la aplicacion necesita sin conexion');
+  console.log('===============================================');
+
+  const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8');
+  const sw = fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8');
+
+  const enHtml = (html.match(/<script src="([^"]+)"/g) || [])
+    .map((s) => s.replace(/.*src="/, '').replace(/".*/, ''));
+  enHtml.push((html.match(/<link rel="stylesheet" href="([^"]+)"/) || [])[1]);
+
+  const enSw = (sw.match(/'\.\/([^']+)'/g) || []).map((s) => s.replace(/^'\.\//, '').replace(/'$/, ''));
+
+  const faltantes = enHtml.filter((a) => a && enSw.indexOf(a) === -1);
+  if (faltantes.length) {
+    throw new Error(
+      'index.html carga archivos que sw.js no guarda: ' + faltantes.join(', ') +
+      '. Sin señal, la aplicacion no los va a encontrar.'
+    );
+  }
+
+  const inexistentes = enSw.filter((a) => a !== '' && !fs.existsSync(path.join(RAIZ, a)));
+  if (inexistentes.length) {
+    throw new Error(
+      'sw.js lista archivos que no existen: ' + inexistentes.join(', ') +
+      '. El service worker no se instala y la aplicacion queda sin funcionar sin señal.'
+    );
+  }
+
+  console.log('  ok   los ' + enHtml.filter(Boolean).length + ' archivos que carga index.html estan en el cache');
+  console.log('  ok   los ' + enSw.length + ' archivos listados en sw.js existen');
+});
+
+// 4. Calculos y 5. Apps Script ---------------------------------------------
 
 ['pruebas_calculos.js', 'pruebas_apps_script.js'].forEach((archivo) => {
   const resultado = spawnSync('node', [path.join(__dirname, archivo)], { encoding: 'utf8' });

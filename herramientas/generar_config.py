@@ -30,6 +30,14 @@ RAIZ = Path(__file__).resolve().parent.parent
 PLANILLA = RAIZ / "especificacion" / "EDT_Fundacion_Chile_Maria_Pinto_KPI.xlsx"
 SALIDA = RAIZ / "js" / "config-actividades.js"
 
+# El Apps Script tambien necesita la lista de actividades, porque es el que arma
+# la hoja de indicadores. Se escribe en el mismo archivo, entre estas marcas, en
+# vez de mantenerla a mano en dos lugares: si las dos listas se separan, la hoja
+# KPI queda mostrando actividades que el formulario ya no ofrece, y al reves.
+APPS_SCRIPT = RAIZ / "apps-script" / "Codigo.gs"
+MARCA_INICIO = "// <<< ACTIVIDADES GENERADAS — no editar a mano."
+MARCA_FIN = "// >>> FIN ACTIVIDADES GENERADAS"
+
 # Una actividad se muestra en la aplicacion salvo que la EDT diga explicitamente
 # "No" en la columna registro_app_fuente. Las marcadas "Por confirmar" se
 # muestran con una etiqueta visible; para ocultarlas basta cambiar esto a False
@@ -248,6 +256,54 @@ def js(valor, sangria=0):
     return bruto
 
 
+def bloque_apps_script(incluidas):
+    """Arma el bloque de actividades que va dentro de apps-script/Codigo.gs."""
+    lineas = [
+        MARCA_INICIO,
+        "// Se generan con `python3 herramientas/generar_config.py` desde",
+        "// especificacion/EDT_Fundacion_Chile_Maria_Pinto_KPI.xlsx. Son las mismas que",
+        "// ofrece la aplicación, así que la hoja KPI no puede quedar desalineada con el",
+        "// formulario.",
+        "var ACTIVIDADES = [",
+    ]
+    for i, a in enumerate(incluidas):
+        coma = "" if i == len(incluidas) - 1 else ","
+        meta = "null" if a["meta"] is None else repr(a["meta"])
+        lineas.append(
+            "  {{ edt: {codigo}, nombre: {nombre}, unidad: {unidad}, meta: {meta} }}{coma}".format(
+                codigo=js_texto(a["codigo"]),
+                nombre=js_texto(a["nombre"]),
+                unidad=js_texto(a["unidad_medida"]),
+                meta=meta,
+                coma=coma,
+            )
+        )
+    lineas.append("];")
+    lineas.append(MARCA_FIN)
+    return "\n".join(lineas)
+
+
+def js_texto(valor):
+    """Texto entre comillas simples, escapando lo que rompería el literal."""
+    return "'" + str(valor).replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def escribir_apps_script(incluidas):
+    contenido = APPS_SCRIPT.read_text(encoding="utf-8")
+    inicio = contenido.find(MARCA_INICIO)
+    fin = contenido.find(MARCA_FIN)
+    if inicio == -1 or fin == -1:
+        raise SystemExit(
+            "No se encontraron las marcas de bloque generado en apps-script/Codigo.gs. "
+            "Sin ellas no se puede mantener la lista de actividades sincronizada con la EDT."
+        )
+    nuevo = contenido[:inicio] + bloque_apps_script(incluidas) + contenido[fin + len(MARCA_FIN):]
+    if nuevo != contenido:
+        APPS_SCRIPT.write_text(nuevo, encoding="utf-8")
+        return True
+    return False
+
+
 def generar():
     proyecto, catalogos, comunes, incluidas, excluidas = leer(PLANILLA)
 
@@ -299,8 +355,13 @@ if (typeof module !== 'undefined' && module.exports) {{
 }}
 """
     SALIDA.write_text(contenido, encoding="utf-8")
+    cambio_script = escribir_apps_script(incluidas)
 
     print(f"Escrito: {SALIDA.relative_to(RAIZ)}")
+    print(
+        f"  {APPS_SCRIPT.relative_to(RAIZ)}: "
+        + ("bloque de actividades actualizado" if cambio_script else "sin cambios")
+    )
     print(f"  Actividades en la aplicacion: {len(incluidas)}")
     for a in incluidas:
         marca = "  (por confirmar)" if a["por_confirmar"] else ""

@@ -30,10 +30,15 @@ al menos una vez por jornada. Un registro cubre un solo sector: si una jornada
 abarca Las Mercedes e Ibacache, se crean dos registros.
 
 **A qué planilla llega:** a una planilla de Google mediante el Apps Script de
-`apps-script/Codigo.gs`, en el modelo normalizado que define la EDT —cabecera en
-`07_Registro_Actividad` y parámetros variables en formato largo en
-`08_Registro_Detalle`, unidos por `record_id`—, más las hojas de EDT, costos e
-indicadores.
+`apps-script/Codigo.gs`, que mantiene tres hojas: `Registros_MariaPinto` (una
+fila por registro), `KPI_MariaPinto` (todos los indicadores, con fórmulas vivas)
+y `Costos_MariaPinto` (los valores económicos que se llenan a mano).
+
+**La aplicación registra; la planilla calcula.** La aplicación no tiene pantalla
+de indicadores: solo Registrar, Registros y Exportar. Cada teléfono ve nada más
+que lo que registró él, así que un indicador calculado ahí mostraría el avance de
+un teléfono como si fuera el del proyecto. Es el mismo reparto del proyecto
+hermano.
 
 **La jornada del proyecto** es de 08:00 a 16:00 con 30 minutos de colación: 7,5
 horas efectivas por persona y día hábil.
@@ -53,9 +58,19 @@ columnas y la hoja de indicadores ya están resueltos ahí y probados en terreno
 
 Propias de este proyecto:
 
+- **La aplicación no calcula indicadores.** Todo lo que se mira para tomar
+  decisiones vive en la planilla, en fórmulas que se recalculan solas. Agregar
+  una pantalla de indicadores a la aplicación sería mostrar el avance de un
+  teléfono como si fuera el del proyecto.
 - **Lo que la EDT marca «sin registro en APP» no aparece en el formulario.** No
   se borra de la EDT ni de la planilla: se excluye del selector de actividades y
   se sigue por fuera. La regla vive en `herramientas/generar_config.py`.
+- **La lista de actividades del Apps Script también se genera.** Vive entre
+  marcas dentro de `apps-script/Codigo.gs` y la escribe el mismo generador. Si se
+  editara a mano, la hoja KPI mostraría actividades que el formulario ya no
+  ofrece.
+- **El script nunca sobreescribe un valor cargado a mano en la hoja de costos.**
+  Agrega las filas que falten y deja el resto intacto.
 - **La colación se descuenta solo cuando el tramo registrado cubre la ventana de
   colación.** Descontar siempre 30 minutos rompe el caso de registrar la mañana
   y la tarde por separado: restaría una hora que sí se trabajó.
@@ -148,10 +163,15 @@ al menos hay que hacerla visible.
   Los comandos son:
 
   ```bash
-  node pruebas/ejecutar.js          # versiones, cálculos, Apps Script simulado
+  node pruebas/ejecutar.js          # versiones, archivos, cálculos, Apps Script simulado
   node pruebas/prueba_navegador.js  # la aplicación en Chromium de verdad
   python3 herramientas/generar_config.py   # regenerar el formulario desde la EDT
   ```
+
+- **Un `const` de nivel superior no queda colgando de `window`.** Los archivos
+  que publican algo para los demás (`version.js`, `config-actividades.js`) tienen
+  que asignarlo a `self` explícitamente. Sin eso, el valor llega como `undefined`
+  a la pantalla y a la planilla, y nada da error.
 
 - **Las fórmulas que escribe el Apps Script van en notación inglesa** (coma como
   separador, `TRUE`, `TODAY()`). Google las traduce sola al mostrarlas. Escritas

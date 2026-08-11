@@ -1,57 +1,32 @@
 // Pruebas del Apps Script contra una planilla simulada.
 //
+// Aca vive todo el calculo del proyecto, asi que estas comprobaciones son las que
+// cuidan los numeros que se miran para tomar decisiones.
+//
 //   node pruebas/pruebas_apps_script.js
 
+const fs = require('fs');
 const path = require('path');
 const { prueba, afirmar, igual, ejecutar } = require('./ayuda');
 const { cargarScript, letraDeColumna } = require('./simular_planilla');
 
 const config = require(path.join(__dirname, '..', 'js', 'config-actividades.js'));
-
-const HOJA_REGISTRO = '07_Registro_Actividad';
-const HOJA_DETALLE = '08_Registro_Detalle';
-const HOJA_COSTOS = '09_Costos_Parametros';
-const HOJA_EDT = '01_EDT_Actividades';
-const HOJA_INDICADORES = '10_Indicadores';
-
-function envio(cambios) {
-  return Object.assign(
-    {
-      version_app: '0.1.0-beta',
-      proyecto_id: config.PROYECTO.proyecto_id,
-      proyecto: config.PROYECTO,
-      jornada: config.JORNADA,
-      edt: config.ACTIVIDADES.map((a) => ({
-        codigo: a.codigo,
-        categoria: a.categoria,
-        nombre: a.nombre,
-        unidad_medida: a.unidad_medida,
-        meta: a.meta,
-        meta_texto: a.meta_texto,
-        campo_cantidad_ejecutada: a.campo_cantidad_ejecutada,
-        en_app: true,
-      })).concat(
-        config.ACTIVIDADES_FUERA_DE_APP.map((a) => ({
-          codigo: a.codigo, categoria: a.categoria, nombre: a.nombre, en_app: false, motivo: a.motivo,
-        }))
-      ),
-      registros: [],
-      costos: null,
-    },
-    cambios || {}
-  );
-}
+const RUTA_SCRIPT = path.join(__dirname, '..', 'apps-script', 'Codigo.gs');
 
 function registro(cambios) {
   return Object.assign(
     {
       record_id: 'aaaa-1111',
-      fecha: '2026-08-12',
-      persona_que_registra: 'Persona de prueba',
-      sector: 'LAS_MERCEDES',
+      proyecto_id: 'FCH_MARIA_PINTO',
+      nombre_proyecto: 'Fundación Chile - María Pinto',
       codigo_edt: '2.1',
       actividad: 'Trazado y replanteo de zanjas',
       categoria: 'Conservación de suelos y aguas',
+      unidad_medida: 'N° de zanjas marcadas',
+      meta_vigente: 1800,
+      fecha: '2026-08-12',
+      persona_que_registra: 'Persona de prueba',
+      sector: 'Las Mercedes',
       cantidad_trabajadores: 8,
       hora_inicio: '08:00',
       hora_termino: '16:00',
@@ -59,296 +34,453 @@ function registro(cambios) {
       duracion_horas: 7.5,
       horas_hombre: 60,
       cantidad_ejecutada: 45,
-      unidad_medida: 'N° de zanjas marcadas',
       rendimiento_por_hh: 0.75,
-      hh_por_unidad: 1.3333,
+      rendimiento_por_jornada: 5.625,
       observaciones: '',
       registro_activo: true,
-      detalle: { cantidad_zanjas_marcadas: 45 },
+      cantidad_zanjas_marcadas: 45,
     },
     cambios || {}
   );
 }
 
+function enviar(api, reg, tipo) {
+  const respuesta = api.doPost({
+    parameter: {
+      data: JSON.stringify({
+        tipo: tipo === undefined ? 'registro_fundacion_chile' : tipo,
+        version_app: '0.1.0-beta',
+        record_id: reg.record_id,
+        registro: reg,
+      }),
+    },
+  });
+  return JSON.parse(respuesta.getContent());
+}
+
+function hojas(entorno) {
+  const api = entorno.api;
+  return {
+    registros: entorno.planilla.getSheetByName(api.HOJA_REGISTROS),
+    kpi: entorno.planilla.getSheetByName(api.HOJA_KPI),
+    costos: entorno.planilla.getSheetByName(api.HOJA_COSTOS),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Escritura de registros
 // ---------------------------------------------------------------------------
 
-prueba('ninguna hoja nace con columnas repetidas', () => {
-  // La comprobacion afirma la propiedad que importa. Contar columnas no sirve:
-  // una hoja con todo duplicado tambien "tiene columnas".
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('un registro nuevo deja exactamente una fila y crea las tres hojas', () => {
+  const entorno = cargarScript();
+  const resultado = enviar(entorno.api, registro());
 
-  planilla.getSheets().forEach((hoja) => {
-    const encabezado = hoja.encabezado().filter((c) => c !== '');
+  igual(resultado.estado, 'ok');
+  afirmar(!resultado.error_indicadores, 'las hojas calculadas fallaron: ' + resultado.error_indicadores);
+
+  const h = hojas(entorno);
+  afirmar(!!h.registros && !!h.kpi && !!h.costos, 'falta alguna hoja');
+  igual(h.registros.filasDeDatos().length, 1);
+});
+
+prueba('la hoja de registros NO nace con las columnas repetidas', () => {
+  // Este es el error exacto del proyecto hermano: la hoja nacia con 48 columnas
+  // en vez de 26, cada dato escrito dos veces, porque en la primera escritura el
+  // encabezado se copiaba con repeticiones. Contar columnas no basta; lo que hay
+  // que afirmar es que ninguna se repite.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  entorno.planilla.getSheets().forEach((hoja) => {
     const vistos = {};
-    encabezado.forEach((columna) => {
-      afirmar(
-        !vistos[columna],
-        'la hoja ' + hoja.getName() + ' repite la columna "' + columna + '"'
-      );
+    hoja.encabezado().filter((c) => c !== '').forEach((columna) => {
+      afirmar(!vistos[columna], 'la hoja ' + hoja.getName() + ' repite la columna "' + columna + '"');
       vistos[columna] = true;
     });
   });
 });
 
-prueba('se crean las hojas del modelo de datos', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('el ancho de la hoja de registros es el esperado, sin columnas de mas', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  [HOJA_REGISTRO, HOJA_DETALLE, HOJA_COSTOS, HOJA_EDT, HOJA_INDICADORES].forEach((nombre) => {
-    afirmar(!!planilla.getSheetByName(nombre), 'falta la hoja ' + nombre);
-  });
-});
-
-prueba('un registro nuevo deja exactamente una fila', () => {
-  const { api, planilla } = cargarScript();
-  const resultado = api.procesar(envio({ registros: [registro()] }));
-
-  igual(resultado.recibidos.length, 1);
-  igual(planilla.getSheetByName(HOJA_REGISTRO).filasDeDatos().length, 1);
+  const encabezado = hojas(entorno).registros.encabezado();
+  // Las columnas base mas el unico campo propio de esta actividad.
+  igual(encabezado.length, entorno.api.COLUMNAS.length + 1);
+  igual(encabezado[encabezado.length - 1], 'cantidad_zanjas_marcadas');
 });
 
 prueba('reenviar el mismo record_id actualiza la fila y no agrega otra', () => {
-  // Regla 6 del modelo de datos: nunca se actualiza por posicion de fila.
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
-  api.procesar(envio({ registros: [registro({ cantidad_ejecutada: 70 })] }));
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  enviar(entorno.api, registro({ cantidad_ejecutada: 70 }));
 
-  const hoja = planilla.getSheetByName(HOJA_REGISTRO);
-  const filas = hoja.filasDeDatos();
+  const filas = hojas(entorno).registros.filasDeDatos();
   igual(filas.length, 1, 'no puede haber dos filas para el mismo registro');
-
-  const columna = api.COLUMNAS_REGISTRO.indexOf('cantidad_ejecutada');
-  igual(filas[0][columna], 70, 'debe quedar el valor nuevo');
+  igual(filas[0][entorno.api.COLUMNAS.indexOf('cantidad_ejecutada')], 70, 'debe quedar el valor nuevo');
 });
 
 prueba('dos registros distintos conviven sin pisarse', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({
-    registros: [registro(), registro({ record_id: 'bbbb-2222', cantidad_ejecutada: 12 })],
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  enviar(entorno.api, registro({ record_id: 'bbbb-2222', cantidad_ejecutada: 12 }));
+
+  igual(hojas(entorno).registros.filasDeDatos().length, 2);
+});
+
+prueba('una actividad con un campo propio nuevo agrega su columna al final', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  enviar(entorno.api, registro({
+    record_id: 'cccc-3333',
+    codigo_edt: '10.1',
+    cantidad_asistentes: 25,
+    tipo_publico: 'Escuela básica',
   }));
 
-  igual(planilla.getSheetByName(HOJA_REGISTRO).filasDeDatos().length, 2);
+  const h = hojas(entorno);
+  const encabezado = h.registros.encabezado();
+  afirmar(encabezado.indexOf('cantidad_asistentes') !== -1, 'falta la columna nueva');
+  afirmar(encabezado.indexOf('tipo_publico') !== -1, 'falta la columna nueva');
+
+  // La fila que ya estaba escrita no se descuadra.
+  const filas = h.registros.filasDeDatos();
+  const primera = filas.filter((f) => f[entorno.api.COLUMNAS.indexOf('record_id')] === 'aaaa-1111')[0];
+  igual(primera[entorno.api.COLUMNAS.indexOf('cantidad_ejecutada')], 45);
 });
 
-prueba('el detalle se reemplaza y no se acumula al reenviar', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
-  api.procesar(envio({ registros: [registro({ detalle: { cantidad_zanjas_marcadas: 70 } })] }));
+prueba('una baja queda marcada como no vigente y se informa', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  const resultado = enviar(entorno.api, registro({ registro_activo: false }));
 
-  const filas = planilla.getSheetByName(HOJA_DETALLE).filasDeDatos();
-  igual(filas.length, 1, 'el valor viejo y el nuevo no pueden convivir');
-
-  const columnaValor = api.COLUMNAS_DETALLE.indexOf('valor_numero');
-  igual(filas[0][columnaValor], 70);
+  igual(resultado.dado_de_baja, true);
+  const filas = hojas(entorno).registros.filasDeDatos();
+  igual(filas.length, 1);
+  igual(filas[0][entorno.api.COLUMNAS.indexOf('registro_activo')], false);
+  igual(filas[0][entorno.api.COLUMNAS.indexOf('estado_sincronizacion')], 'Dado de baja');
 });
 
-prueba('el detalle de un registro no borra el de otro', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({
-    registros: [registro(), registro({ record_id: 'bbbb-2222', detalle: { cantidad_zanjas_marcadas: 12 } })],
-  }));
-  api.procesar(envio({ registros: [registro({ detalle: { cantidad_zanjas_marcadas: 99 } })] }));
-
-  const filas = planilla.getSheetByName(HOJA_DETALLE).filasDeDatos();
-  igual(filas.length, 2, 'el detalle del otro registro debe seguir ahi');
+prueba('la fecha se escribe como fecha y no como texto', () => {
+  // Guardada como texto, ordenar y agrupar por fecha en la planilla no funciona.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  const valor = hojas(entorno).registros.filasDeDatos()[0][entorno.api.COLUMNAS.indexOf('fecha')];
+  // `instanceof Date` no sirve: el script corre en un contexto aislado y su Date
+  // no es el mismo objeto que el de estas pruebas.
+  afirmar(
+    Object.prototype.toString.call(valor) === '[object Date]',
+    'la fecha quedo como ' + Object.prototype.toString.call(valor)
+  );
 });
 
-prueba('los parametros de texto van a valor_texto y los numeros a valor_numero', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({
-    registros: [registro({
-      codigo_edt: '10.1',
-      detalle: { cantidad_asistentes: 25, tipo_publico: 'Escuela básica' },
-    })],
-  }));
+prueba('un envio de otro tipo se rechaza sin escribir nada', () => {
+  const entorno = cargarScript();
+  const resultado = enviar(entorno.api, registro(), 'replante');
 
-  const filas = planilla.getSheetByName(HOJA_DETALLE).filasDeDatos();
-  const iCodigo = api.COLUMNAS_DETALLE.indexOf('codigo_parametro');
-  const iNumero = api.COLUMNAS_DETALLE.indexOf('valor_numero');
-  const iTexto = api.COLUMNAS_DETALLE.indexOf('valor_texto');
-
-  const asistentes = filas.filter((f) => f[iCodigo] === 'cantidad_asistentes')[0];
-  const publico = filas.filter((f) => f[iCodigo] === 'tipo_publico')[0];
-
-  igual(asistentes[iNumero], 25);
-  igual(asistentes[iTexto], '');
-  igual(publico[iTexto], 'Escuela básica');
-  igual(publico[iNumero], '');
+  igual(resultado.estado, 'error');
+  afirmar(/replante/.test(resultado.mensaje), 'el mensaje debe decir que tipo llego');
+  afirmar(!entorno.planilla.getSheetByName(entorno.api.HOJA_REGISTROS), 'no debio crear la hoja');
 });
 
-prueba('los parametros vacios no generan filas de detalle', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({
-    registros: [registro({ detalle: { cantidad_zanjas_marcadas: 45, observacion_extra: '' } })],
-  }));
-  igual(planilla.getSheetByName(HOJA_DETALLE).filasDeDatos().length, 1);
+prueba('sin identificador de planilla configurado, el script se niega y lo dice', () => {
+  const entorno = cargarScript({ idPlanilla: null });
+  const resultado = enviar(entorno.api, registro());
+
+  igual(resultado.estado, 'error');
+  afirmar(/ID_PLANILLA/.test(resultado.mensaje), resultado.mensaje);
 });
 
-prueba('una baja marca la fila como no vigente y se informa como baja', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
-  const resultado = api.procesar(envio({ registros: [registro({ registro_activo: false })] }));
+prueba('el bloqueo se suelta siempre, incluso cuando el envio se rechaza', () => {
+  // Si el bloqueo no se soltara, la siguiente sincronizacion esperaria 30
+  // segundos y terminaria fallando, sin ninguna pista de por que.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+  enviar(entorno.api, registro(), 'otro_tipo');
+  entorno.api.doPost({ parameter: { data: 'esto no es json' } });
 
-  igual(resultado.bajas.length, 1, 'la baja tiene que informarse aparte');
-  igual(resultado.recibidos.length, 0);
-
-  const columna = api.COLUMNAS_REGISTRO.indexOf('registro_activo');
-  igual(planilla.getSheetByName(HOJA_REGISTRO).filasDeDatos()[0][columna], false);
+  igual(entorno.bloqueos.tomados, 3);
+  igual(entorno.bloqueos.soltados, 3, 'se tomo el bloqueo mas veces de las que se solto');
 });
 
-prueba('las formulas de indicadores apuntan a las columnas correctas', () => {
-  // Esta es la comprobacion que evita el error silencioso mas caro de la hoja:
-  // una formula que suma la columna equivocada entrega un numero creible.
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('si las hojas calculadas fallan, el registro igual queda escrito', () => {
+  // El KPI es accesorio. Si un fallo suyo diera el envio por fallido, el telefono
+  // reintentaria y el equipo creeria que perdio datos.
+  const entorno = cargarScript();
+  entorno.contexto._asegurarKPI = function () { throw new Error('falla simulada'); };
 
-  const hoja = planilla.getSheetByName(HOJA_INDICADORES);
-  const letraCantidad = letraDeColumna(api.COLUMNAS_REGISTRO.indexOf('cantidad_ejecutada') + 1);
-  const letraHH = letraDeColumna(api.COLUMNAS_REGISTRO.indexOf('horas_hombre') + 1);
-  const letraCodigo = letraDeColumna(api.COLUMNAS_REGISTRO.indexOf('codigo_edt') + 1);
-  const letraActivo = letraDeColumna(api.COLUMNAS_REGISTRO.indexOf('registro_activo') + 1);
+  const resultado = enviar(entorno.api, registro());
+  igual(resultado.estado, 'ok');
+  afirmar(/falla simulada/.test(resultado.error_indicadores || ''), 'debe informar el problema del KPI');
+  igual(hojas(entorno).registros.filasDeDatos().length, 1, 'el registro tenia que quedar escrito');
+});
 
-  const filas = hoja.filasDeDatos();
-  const conFormula = filas.filter((f) => typeof f[4] === 'string' && f[4].indexOf('SUMIFS') !== -1);
-  afirmar(conFormula.length > 0, 'no se escribio ninguna formula de suma');
+// ---------------------------------------------------------------------------
+// Hoja de costos
+// ---------------------------------------------------------------------------
 
-  conFormula.forEach((fila) => {
-    afirmar(
-      fila[4].indexOf(HOJA_REGISTRO + '!' + letraCantidad + ':' + letraCantidad) !== -1,
-      'la suma de lo ejecutado no apunta a la columna cantidad_ejecutada (' + letraCantidad + '): ' + fila[4]
-    );
-    afirmar(
-      fila[5].indexOf(HOJA_REGISTRO + '!' + letraHH + ':' + letraHH) !== -1,
-      'la suma de horas-hombre no apunta a la columna horas_hombre (' + letraHH + '): ' + fila[5]
-    );
-    afirmar(
-      fila[4].indexOf(HOJA_REGISTRO + '!' + letraCodigo + ':' + letraCodigo) !== -1,
-      'el filtro por actividad no apunta a codigo_edt (' + letraCodigo + ')'
-    );
-    afirmar(
-      fila[4].indexOf(HOJA_REGISTRO + '!' + letraActivo + ':' + letraActivo + ',TRUE') !== -1,
-      'la suma no excluye los registros dados de baja'
-    );
+prueba('la hoja de costos nace con los parametros por llenar y filas para extras', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const filas = hojas(entorno).costos.filasDeDatos();
+  const claves = filas.map((f) => f[0]);
+  ['costo_hh', 'camioneta', 'banos'].forEach((clave) => {
+    afirmar(claves.indexOf(clave) !== -1, 'falta el parametro ' + clave);
+  });
+  afirmar(claves.filter((c) => /^extra_/.test(c)).length >= 5, 'faltan filas para costos extras');
+
+  // Nacen vacias: el script ofrece dónde escribir, no inventa montos.
+  const costoHH = filas.filter((f) => f[0] === 'costo_hh')[0];
+  igual(costoHH[3], '', 'el valor tiene que nacer vacio');
+});
+
+prueba('sincronizar de nuevo NO borra los costos escritos a mano', () => {
+  // Esta es la comprobacion que hace posible que los costos se llenen en la
+  // planilla. Si el script reescribiera la hoja en cada sincronizacion, el equipo
+  // perderia lo cargado y no habria forma de notarlo hasta mirar un indicador raro.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const costos = hojas(entorno).costos;
+  const filaCostoHH = costos.filasDeDatos().findIndex((f) => f[0] === 'costo_hh') + 2;
+  costos.getRange(filaCostoHH, 4).setValue(4000);
+  costos.getRange(filaCostoHH, 7).setValue('Anotado por el administrador');
+
+  enviar(entorno.api, registro({ record_id: 'bbbb-2222' }));
+  enviar(entorno.api, registro({ record_id: 'cccc-3333' }));
+
+  igual(costos.getRange(filaCostoHH, 4).getValue(), 4000, 'se perdio el valor cargado a mano');
+  igual(costos.getRange(filaCostoHH, 7).getValue(), 'Anotado por el administrador');
+});
+
+prueba('un parametro de costos que falte se agrega sin tocar los que ya estan', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const costos = hojas(entorno).costos;
+  const antes = costos.filasDeDatos().length;
+
+  // Se simula una planilla creada con una version anterior, a la que le falta un
+  // parametro nuevo.
+  const filaBanos = costos.filasDeDatos().findIndex((f) => f[0] === 'banos') + 2;
+  costos.deleteRow(filaBanos);
+  entorno.api._asegurarCostos(entorno.planilla);
+
+  const claves = costos.filasDeDatos().map((f) => f[0]);
+  afirmar(claves.indexOf('banos') !== -1, 'el parametro que faltaba tenia que volver');
+  igual(costos.filasDeDatos().length, antes, 'no debe duplicar filas');
+});
+
+prueba('la periodicidad es una lista cerrada', () => {
+  // Escribir "mensual" en vez de "Por mes" haria que la conversion devuelva el
+  // monto sin convertir, sin avisar de nada.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const validaciones = hojas(entorno).costos.validaciones;
+  afirmar(validaciones.length > 0, 'no se puso validacion en la columna periodicidad');
+  const regla = validaciones[validaciones.length - 1].regla;
+  igual(regla.permiteInvalido, false);
+  entorno.api.PERIODICIDADES.forEach((p) => {
+    afirmar(regla.valores.indexOf(p) !== -1, 'falta la periodicidad ' + p);
+  });
+});
+
+prueba('la conversion a total del proyecto cubre las tres periodicidades', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const camioneta = hojas(entorno).costos.filasDeDatos().filter((f) => f[0] === 'camioneta')[0];
+  const formula = String(camioneta[5]);
+  afirmar(/Por día hábil/.test(formula), 'falta el caso por dia habil');
+  afirmar(/Por mes/.test(formula), 'falta el caso por mes');
+  afirmar(/\*36/.test(formula), 'el caso por dia habil debe multiplicar por los dias del plan');
+
+  // La tarifa por hora-hombre no es un monto del proyecto y no se convierte.
+  const costoHH = hojas(entorno).costos.filasDeDatos().filter((f) => f[0] === 'costo_hh')[0];
+  igual(costoHH[5], '—', 'la tarifa por hora no puede mostrar un total del proyecto');
+});
+
+// ---------------------------------------------------------------------------
+// Hoja KPI
+// ---------------------------------------------------------------------------
+
+prueba('las formulas del KPI apuntan a las columnas correctas', () => {
+  // Es la comprobacion que evita el error silencioso mas caro de la planilla: una
+  // formula que suma la columna equivocada entrega un numero perfectamente creible.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const COLUMNAS = entorno.api.COLUMNAS;
+  const letra = (campo) => letraDeColumna(COLUMNAS.indexOf(campo) + 1);
+  const hoja = entorno.api.HOJA_REGISTROS;
+
+  const formulas = hojas(entorno).kpi.formulas();
+  afirmar(formulas.length > 0, 'la hoja KPI no tiene formulas');
+
+  // Las referencias son abiertas: de la fila 2 hacia abajo, para que crezcan solas.
+  const referencia = (campo) => "'" + hoja + "'!" + letra(campo) + '2:' + letra(campo);
+
+  const conCantidad = formulas.filter((f) => f.indexOf(referencia('cantidad_ejecutada')) !== -1);
+  const conHH = formulas.filter((f) => f.indexOf(referencia('horas_hombre')) !== -1);
+  const conCodigo = formulas.filter((f) => f.indexOf(referencia('codigo_edt')) !== -1);
+
+  afirmar(conCantidad.length >= 11,
+    'las sumas de lo ejecutado no apuntan a cantidad_ejecutada (' + letra('cantidad_ejecutada') + ')');
+  afirmar(conHH.length >= 11,
+    'las sumas de horas-hombre no apuntan a horas_hombre (' + letra('horas_hombre') + ')');
+  afirmar(conCodigo.length >= 11,
+    'el filtro por actividad no apunta a codigo_edt (' + letra('codigo_edt') + ')');
+});
+
+prueba('ninguna suma del KPI incluye los registros dados de baja', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const letraActivo = letraDeColumna(entorno.api.COLUMNAS.indexOf('registro_activo') + 1);
+  const marca = "'" + entorno.api.HOJA_REGISTROS + "'!" + letraActivo + '2:' + letraActivo;
+
+  const sumas = hojas(entorno).kpi.formulas().filter((f) => /SUMIFS|COUNTIFS|AVERAGEIFS|MAXIFS/.test(f));
+  afirmar(sumas.length > 0, 'no hay sumas en el KPI');
+  sumas.forEach((f) => {
+    afirmar(f.indexOf(marca + ',TRUE') !== -1, 'esta formula sumaria registros dados de baja: ' + f);
   });
 });
 
 prueba('las formulas se escriben en notacion inglesa', () => {
   // Escritas en español quedan como #ERROR! en la celda y el indicador
   // simplemente no aparece, sin que nada lo advierta.
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  const hoja = planilla.getSheetByName(HOJA_INDICADORES);
-  const formulas = [];
-  hoja.datos.forEach((fila) => (fila || []).forEach((celda) => {
-    if (typeof celda === 'string' && celda.charAt(0) === '=') formulas.push(celda);
-  }));
-
-  afirmar(formulas.length > 0, 'la hoja de indicadores no tiene formulas');
+  const formulas = hojas(entorno).kpi.formulas().concat(hojas(entorno).costos.formulas());
+  afirmar(formulas.length > 0, 'no hay formulas que revisar');
   formulas.forEach((f) => {
-    afirmar(f.indexOf('VERDADERO') === -1, 'formula en español: ' + f);
-    afirmar(f.indexOf('HOY(') === -1, 'formula en español: ' + f);
-    afirmar(f.indexOf('SI.ERROR') === -1, 'formula en español: ' + f);
-    afirmar(f.indexOf(';') === -1, 'separador de argumentos en español: ' + f);
+    ['VERDADERO', 'FALSO', 'HOY(', 'SI.ERROR', 'SUMAR.SI', 'CONTAR.SI', 'PROMEDIO.SI'].forEach((palabra) => {
+      afirmar(f.indexOf(palabra) === -1, 'formula en español (' + palabra + '): ' + f);
+    });
   });
 });
 
-prueba('la hoja de indicadores solo lista actividades que se registran en la aplicacion', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('el KPI lista las 11 actividades de la aplicacion y ninguna otra', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  const filas = planilla.getSheetByName(HOJA_INDICADORES).filasDeDatos();
-  const codigos = filas.map((f) => f[0]).filter((c) => /^\d+\.\d+$/.test(String(c)));
+  const codigos = {};
+  hojas(entorno).kpi.datos.forEach((fila) => {
+    if (fila && /^\d+\.\d+$/.test(String(fila[0]))) codigos[String(fila[0])] = true;
+  });
 
-  igual(codigos.length, config.ACTIVIDADES.length);
+  igual(Object.keys(codigos).length, config.ACTIVIDADES.length);
   config.ACTIVIDADES_FUERA_DE_APP.forEach((a) => {
-    afirmar(codigos.indexOf(a.codigo) === -1, 'la actividad ' + a.codigo + ' no debia aparecer');
+    afirmar(!codigos[a.codigo], 'la actividad ' + a.codigo + ' no debia aparecer en el KPI');
   });
 });
 
-prueba('las actividades sin meta no muestran porcentaje de avance', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('las actividades sin meta no muestran porcentaje ni desviacion', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  const filas = planilla.getSheetByName(HOJA_INDICADORES).filasDeDatos();
-  const sinMeta = filas.filter((f) => /^\d+\.\d+$/.test(String(f[0])) && f[3] === '');
+  // En la seccion de avance: columna D meta, F % avance, G falta.
+  const filas = hojas(entorno).kpi.datos.filter((f) => f && /^\d+\.\d+$/.test(String(f[0])));
+  const sinMeta = filas.filter((f) => f[2] && f[3] === '');
   afirmar(sinMeta.length > 0, 'la EDT tiene actividades sin meta y deberian aparecer');
   sinMeta.forEach((f) => {
-    igual(f[8], '', 'la actividad ' + f[0] + ' no puede tener porcentaje de avance');
+    igual(f[5], '', 'la actividad ' + f[0] + ' no puede tener porcentaje de avance');
   });
 });
 
-prueba('la EDT completa llega a la planilla, marcando cuales se registran en la aplicacion', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({ registros: [registro()] }));
+prueba('el KPI solo se rehace cuando cambia KPI_VERSION', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  const filas = planilla.getSheetByName(HOJA_EDT).filasDeDatos();
-  igual(filas.length, 32, 'la EDT completa son 32 actividades');
+  igual(entorno.api._asegurarKPI(entorno.planilla), false, 'no debe rehacerse en cada sincronizacion');
 
-  const columna = api.COLUMNAS_EDT.indexOf('se_registra_en_app');
-  igual(filas.filter((f) => f[columna] === 'Sí').length, 11);
-  igual(filas.filter((f) => f[columna] === 'No').length, 21);
+  hojas(entorno).kpi.getRange('N1').setValue('0.0.1-anterior');
+  igual(entorno.api._asegurarKPI(entorno.planilla), true, 'con otra version tiene que rehacerse');
+  igual(hojas(entorno).kpi.getRange('N1').getValue(), entorno.api.KPI_VERSION);
 });
 
-prueba('los parametros economicos se guardan y no dejan restos de una carga anterior', () => {
-  const { api, planilla } = cargarScript();
-  api.procesar(envio({
-    registros: [],
-    costos: {
-      costo_hh: 4000,
-      camioneta_monto: 600000,
-      camioneta_periodicidad: 'mes',
-      banos_monto: 200000,
-      banos_periodicidad: 'mes',
-      extras: [{ concepto: 'Combustible', monto: 150000 }, { concepto: 'Fletes', monto: 90000 }],
-    },
-  }));
-  igual(planilla.getSheetByName(HOJA_COSTOS).filasDeDatos().length, 5, 'tres fijos mas dos extras');
+prueba('el calendario del KPI usa el plazo y los feriados del proyecto', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  api.procesar(envio({
-    registros: [],
-    costos: { costo_hh: 4500, camioneta_monto: null, banos_monto: null, extras: [] },
-  }));
+  const kpi = hojas(entorno).kpi;
+  const texto = kpi.datos.map((f) => (f || []).join(' ')).join('\n');
+  afirmar(texto.indexOf('2026-08-11') !== -1, 'falta la fecha de inicio');
+  afirmar(texto.indexOf('2026-10-01') !== -1, 'falta la fecha de termino');
+  afirmar(texto.indexOf('2026-09-17') !== -1, 'faltan los feriados en celdas');
 
-  const filas = planilla.getSheetByName(HOJA_COSTOS).filasDeDatos();
-  igual(filas.length, 3, 'los extras eliminados en el telefono no pueden quedar vivos en la planilla');
-  igual(filas[0][2], 4500);
+  const habiles = kpi.formulas().filter((f) => f.indexOf('NETWORKDAYS') !== -1);
+  igual(habiles.length, 1, 'debe haber una formula de dias habiles transcurridos');
+  afirmar(/E\d+:E\d+/.test(habiles[0]), 'los feriados deben ir por referencia a celdas, no dentro de la formula');
 });
 
-prueba('el diseno de la planilla se rehace solo cuando cambia KPI_VERSION', () => {
-  const { api, planilla, propiedades } = cargarScript();
+prueba('el costo por unidad separa el dato duro de la estimacion', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
 
-  igual(api.asegurarEstructura(planilla, envio()), true, 'la primera vez arma todo');
-  igual(propiedades.KPI_VERSION, api.KPI_VERSION);
-  igual(api.asegurarEstructura(planilla, envio()), false, 'la segunda vez no rehace nada');
-
-  propiedades.KPI_VERSION = '0.0.1-anterior';
-  igual(api.asegurarEstructura(planilla, envio()), true, 'con otra version vuelve a armar');
+  const texto = hojas(entorno).kpi.datos.map((f) => (f || []).join(' ')).join('\n');
+  afirmar(/dato duro/.test(texto), 'falta decir cual es el dato duro');
+  afirmar(/estimación/.test(texto), 'falta decir cual es la estimacion');
+  afirmar(/COSTO POR UNIDAD EJECUTADA/.test(texto), 'falta la seccion de costo por unidad');
 });
 
-prueba('una hoja con columnas duplicadas se rechaza al crearla', () => {
-  const { api, planilla } = cargarScript();
-  let fallo = false;
-  try {
-    api.asegurarHoja(planilla, 'hoja_de_prueba', ['a', 'b', 'a']);
-  } catch (error) {
-    fallo = true;
-    afirmar(error.message.indexOf('dos veces') !== -1, 'el mensaje debe decir cual columna se repite');
-  }
-  afirmar(fallo, 'tenia que rechazar el encabezado duplicado');
+prueba('el KPI no da un costo total cuando faltan valores por cargar', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const formulas = hojas(entorno).kpi.formulas();
+  const totales = formulas.filter((f) => /Faltan valores por cargar/.test(f));
+  afirmar(totales.length >= 2, 'el costo total y la proyeccion deben decir que faltan valores');
 });
 
-prueba('las columnas de la planilla coinciden con lo que declara el modelo de datos', () => {
-  const { api } = cargarScript();
-  ['record_id', 'fecha', 'sector', 'codigo_edt', 'cantidad_ejecutada', 'horas_hombre',
-   'duracion_horas', 'registro_activo'].forEach((columna) => {
-    afirmar(api.COLUMNAS_REGISTRO.indexOf(columna) !== -1, 'falta la columna ' + columna);
+// ---------------------------------------------------------------------------
+// El script y la EDT no pueden separarse
+// ---------------------------------------------------------------------------
+
+prueba('las actividades del Apps Script son exactamente las de la aplicacion', () => {
+  // Si las dos listas se separan, la hoja KPI muestra actividades que el
+  // formulario ya no ofrece, o deja fuera una que si se esta registrando.
+  const entorno = cargarScript();
+  const enScript = entorno.api.ACTIVIDADES;
+
+  igual(enScript.length, config.ACTIVIDADES.length);
+  config.ACTIVIDADES.forEach((a, i) => {
+    igual(enScript[i].edt, a.codigo, 'orden o codigo distinto en la posicion ' + i);
+    igual(enScript[i].nombre, a.nombre, 'nombre distinto para ' + a.codigo);
+    igual(enScript[i].unidad, a.unidad_medida, 'unidad distinta para ' + a.codigo);
+    igual(enScript[i].meta, a.meta === null ? null : a.meta, 'meta distinta para ' + a.codigo);
   });
-  ['detalle_id', 'record_id', 'codigo_parametro', 'valor_numero', 'valor_texto']
-    .forEach((columna) => {
-      afirmar(api.COLUMNAS_DETALLE.indexOf(columna) !== -1, 'falta la columna ' + columna);
-    });
+});
+
+prueba('el calendario y la jornada del Apps Script coinciden con la EDT', () => {
+  const texto = fs.readFileSync(RUTA_SCRIPT, 'utf8');
+  const valor = (nombre) => (texto.match(new RegExp('var ' + nombre + " = '?([^;']+)'?;")) || [])[1];
+
+  igual(valor('FECHA_INICIO'), config.PROYECTO.fecha_inicio);
+  igual(valor('FECHA_TERMINO'), config.PROYECTO.fecha_termino);
+  igual(Number(valor('DIAS_HABILES_PLAN')), config.PROYECTO.dias_habiles_plan);
+  igual(Number(valor('HORAS_JORNADA')), 7.5, 'la jornada efectiva del proyecto');
+
+  config.PROYECTO.feriados.forEach((f) => {
+    afirmar(texto.indexOf("'" + f + "'") !== -1, 'el script no conoce el feriado ' + f);
+  });
+});
+
+prueba('las columnas que envia la aplicacion existen todas en la planilla', () => {
+  // Un campo que la aplicacion envie y el script no conozca igual llegaria, pero
+  // como columna agregada al final y fuera del orden previsto.
+  const entorno = cargarScript();
+  const Sincronizacion = require(path.join(__dirname, '..', 'js', 'sincronizacion.js'));
+
+  Sincronizacion.CAMPOS.forEach((campo) => {
+    afirmar(
+      entorno.api.COLUMNAS.indexOf(campo) !== -1,
+      'la aplicacion envia "' + campo + '" y el script no lo tiene entre sus columnas base'
+    );
+  });
 });
 
 if (require.main === module) {

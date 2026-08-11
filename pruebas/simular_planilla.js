@@ -13,6 +13,30 @@ function celdaVacia(valor) {
   return valor === '' || valor === null || valor === undefined;
 }
 
+/** Letra de columna a numero: 'A' -> 1, 'N' -> 14. */
+function numeroDeColumna(letras) {
+  let n = 0;
+  for (let i = 0; i < letras.length; i++) {
+    n = n * 26 + (letras.charCodeAt(i) - 64);
+  }
+  return n;
+}
+
+/** 'N1' o 'A1:C4' a los cuatro numeros que usa getRange. */
+function rangoDeA1(texto) {
+  const partes = String(texto).toUpperCase().split(':');
+  const inicio = partes[0].match(/^([A-Z]+)(\d+)$/);
+  if (!inicio) throw new Error('Referencia no reconocida: ' + texto);
+
+  const columna = numeroDeColumna(inicio[1]);
+  const fila = Number(inicio[2]);
+  if (partes.length === 1) return [fila, columna, 1, 1];
+
+  const fin = partes[1].match(/^([A-Z]+)(\d+)$/);
+  if (!fin) throw new Error('Referencia no reconocida: ' + texto);
+  return [fila, columna, Number(fin[2]) - fila + 1, numeroDeColumna(fin[1]) - columna + 1];
+}
+
 class Rango {
   constructor(hoja, fila, columna, numFilas, numColumnas) {
     this.hoja = hoja;
@@ -69,8 +93,19 @@ class Rango {
     return this;
   }
 
+  // Los metodos de formato no hacen nada: lo que se comprueba es el contenido y
+  // las formulas, no como se ven. Devuelven `this` para poder encadenarlos igual
+  // que en Apps Script.
   setFontWeight() { return this; }
   setNumberFormat() { return this; }
+  setFontSize() { return this; }
+  setFontColor() { return this; }
+  setBackground() { return this; }
+  setNote(nota) { this.hoja.notas.push(nota); return this; }
+  setDataValidation(v) {
+    this.hoja.validaciones.push({ fila: this.fila, columna: this.columna, filas: this.numFilas, regla: v });
+    return this;
+  }
 }
 
 class Hoja {
@@ -78,6 +113,9 @@ class Hoja {
     this.nombre = nombre;
     this.datos = []; // filas de arreglos, base 0
     this.filasCongeladas = 0;
+    this.notas = [];
+    this.validaciones = [];
+    this.columnasOcultas = [];
   }
 
   getName() { return this.nombre; }
@@ -114,6 +152,8 @@ class Hoja {
   }
 
   getRange(fila, columna, numFilas, numColumnas) {
+    // Apps Script admite las dos formas: getRange(2, 1, 10, 3) y getRange('A1').
+    if (typeof fila === 'string') return this.getRange.apply(this, rangoDeA1(fila));
     return new Rango(this, fila, columna, numFilas === undefined ? 1 : numFilas,
       numColumnas === undefined ? 1 : numColumnas);
   }
@@ -134,7 +174,19 @@ class Hoja {
     return this;
   }
 
+  clearFormats() { return this; }
+  hideColumns(n) { this.columnasOcultas.push(n); return this; }
+  setColumnWidth() { return this; }
   setFrozenRows(n) { this.filasCongeladas = n; return this; }
+
+  /** Todas las formulas escritas en la hoja, para poder revisarlas. */
+  formulas() {
+    const salida = [];
+    this.datos.forEach((fila) => (fila || []).forEach((celda) => {
+      if (typeof celda === 'string' && celda.charAt(0) === '=') salida.push(celda);
+    }));
+    return salida;
+  }
 
   /** Filas con contenido, sin el encabezado. Solo para las comprobaciones. */
   filasDeDatos() {
@@ -150,7 +202,13 @@ class Hoja {
 }
 
 class Planilla {
-  constructor() { this.hojas = []; }
+  constructor(nombre) {
+    this.hojas = [];
+    this.nombre = nombre || 'Planilla simulada';
+  }
+
+  getName() { return this.nombre; }
+  getUrl() { return 'https://docs.google.com/spreadsheets/d/simulada/edit'; }
 
   getSheetByName(nombre) {
     return this.hojas.filter((h) => h.nombre === nombre)[0] || null;
@@ -170,15 +228,39 @@ class Planilla {
  * Carga Codigo.gs en un contexto aislado con la planilla simulada.
  * Devuelve las funciones exportadas y la planilla, para revisarla despues.
  */
-function cargarScript() {
-  const planilla = new Planilla();
+function cargarScript(opciones) {
+  const config = opciones || {};
+  const planilla = new Planilla(config.nombrePlanilla);
   const propiedades = {};
+  const bloqueos = { tomados: 0, soltados: 0 };
 
   const contexto = {
     module: { exports: {} },
     console,
     SpreadsheetApp: {
       getActive: () => planilla,
+      openById: () => planilla,
+      newDataValidation: () => {
+        const regla = { valores: null, permiteInvalido: true };
+        const constructor = {
+          requireValueInList: (valores) => { regla.valores = valores; return constructor; },
+          setAllowInvalid: (v) => { regla.permiteInvalido = v; return constructor; },
+          build: () => regla,
+        };
+        return constructor;
+      },
+    },
+    // El bloqueo evita que dos telefonos que sincronizan a la vez se pisen. Aca
+    // se cuenta cuantas veces se toma y se suelta, para comprobar que siempre se
+    // suelta aunque el envio falle.
+    LockService: {
+      getScriptLock: () => ({
+        waitLock: () => { bloqueos.tomados += 1; },
+        releaseLock: () => { bloqueos.soltados += 1; },
+      }),
+    },
+    Utilities: {
+      formatDate: (fecha) => fecha.toISOString().slice(0, 19).replace('T', ' '),
     },
     PropertiesService: {
       getDocumentProperties: () => ({
@@ -200,7 +282,14 @@ function cargarScript() {
   const codigo = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Codigo.gs'), 'utf8');
   vm.runInContext(codigo, contexto, { filename: 'Codigo.gs' });
 
-  return { api: contexto.module.exports, planilla, propiedades, contexto };
+  // El script trae el identificador de la planilla sin completar a proposito, y
+  // se niega a escribir mientras siga asi. Para las pruebas se completa aca,
+  // salvo que la prueba quiera justamente comprobar ese rechazo.
+  if (config.idPlanilla !== null) {
+    contexto.ID_PLANILLA = config.idPlanilla || 'planilla-simulada';
+  }
+
+  return { api: contexto.module.exports, planilla, propiedades, bloqueos, contexto };
 }
 
 /** Numero de columna (base 1) a letra de planilla: 1 -> A, 14 -> N. */

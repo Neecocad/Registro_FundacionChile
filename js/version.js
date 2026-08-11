@@ -16,6 +16,12 @@
 
 const APP_VERSION = '0.1.0-beta';
 
+// Se publica como variable global a proposito: un `const` de nivel superior no
+// queda colgando de `window`, y los demas archivos la leen desde ahi. Sin esta
+// linea la version viaja como `undefined` a la planilla y la pantalla muestra
+// "Aplicacion undefined", las dos cosas sin dar ningun error.
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { APP_VERSION };
+} else if (typeof self !== 'undefined') {
+  self.APP_VERSION = APP_VERSION;
 }

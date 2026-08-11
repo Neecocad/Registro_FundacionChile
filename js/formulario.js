@@ -230,16 +230,15 @@
     registro.minutos_colacion = duracion.minutosColacion;
     registro.horas_hombre = Calculos.horasHombre(duracion.horas, registro.cantidad_trabajadores);
 
-    // Se guardan tambien los dos indicadores del registro individual, como pide
-    // la hoja 07_Registro_Actividad.
-    registro.rendimiento_por_hh =
-      registro.horas_hombre && registro.cantidad_ejecutada !== null
-        ? Calculos.redondear(registro.cantidad_ejecutada / registro.horas_hombre, 4)
-        : null;
-    registro.hh_por_unidad =
-      registro.cantidad_ejecutada
-        ? Calculos.redondear(registro.horas_hombre / registro.cantidad_ejecutada, 4)
-        : null;
+    // El rendimiento del registro suelto se guarda por comodidad al mirar una
+    // fila. Los indicadores de la planilla no lo usan: se recalculan sobre los
+    // acumulados, porque promediar rendimientos hace pesar igual una jornada
+    // corta que una completa.
+    const rendimiento = Calculos.rendimientos(
+      registro.cantidad_ejecutada, registro.horas_hombre, config.JORNADA
+    );
+    registro.rendimiento_por_hh = rendimiento.porHoraHombre;
+    registro.rendimiento_por_jornada = rendimiento.porJornada;
 
     return registro;
   }

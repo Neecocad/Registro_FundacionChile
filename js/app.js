@@ -1,7 +1,11 @@
 // Conexion entre la pantalla y el resto de los modulos.
 //
-// Orden de lectura sugerido: iniciar() al final del archivo arma todo; el resto
-// son las piezas que usa.
+// La aplicacion tiene tres pantallas y ninguna calcula indicadores: Registrar,
+// Registros y Exportar. El avance, el rendimiento y el costo se calculan en la
+// planilla de Google.
+//
+// Orden de lectura sugerido: iniciar(), al final del archivo, arma todo; el
+// resto son las piezas que usa.
 
 (function (raiz) {
   'use strict';
@@ -10,9 +14,8 @@
   const Calculos = raiz.Calculos;
   const Almacenamiento = raiz.Almacenamiento;
   const Formulario = raiz.Formulario;
-  const Indicadores = raiz.Indicadores;
-  const PantallaCostos = raiz.Costos;
   const Sincronizacion = raiz.Sincronizacion;
+  const Exportar = raiz.Exportar;
   const el = Formulario.elemento;
 
   const $ = function (selector) { return document.querySelector(selector); };
@@ -20,7 +23,6 @@
   // Registro pendiente de confirmacion: cuando hay avisos, se guarda aca hasta
   // que la persona confirme. Nunca se guarda a espaldas de esa confirmacion.
   let porConfirmar = null;
-  let extras = [];
 
   function actividadElegida() {
     const codigo = $('#codigo_edt').value;
@@ -29,6 +31,12 @@
 
   function hoyTexto() {
     return Calculos.textoDeFecha(new Date());
+  }
+
+  function nombreSector(codigo) {
+    const catalogo = config.CATALOGOS.SECTORES_FCH || [];
+    const encontrado = catalogo.filter(function (s) { return s.codigo === codigo; })[0];
+    return encontrado ? encontrado.etiqueta : codigo || 'Sin sector';
   }
 
   // ---------------------------------------------------------------------------
@@ -61,7 +69,8 @@
       ayuda.textContent = duracion.error;
     } else if (duracion.minutosColacion) {
       ayuda.textContent =
-        'Se descontaron ' + duracion.minutosColacion + ' minutos de colación porque el horario registrado cubre la ventana de ' +
+        'Se descontaron ' + duracion.minutosColacion +
+        ' minutos de colación porque el horario registrado cubre la ventana de ' +
         config.JORNADA.colacion_inicio + ' a ' + config.JORNADA.colacion_termino + '.';
     } else {
       ayuda.textContent =
@@ -102,7 +111,10 @@
     avisos.forEach(function (a) {
       nodo.appendChild(
         el('div', { clase: 'aviso aviso-' + a.nivel }, [
-          el('span', { clase: 'aviso-titulo', texto: a.nivel === 'error' ? 'Hay que corregir' : 'Revisa antes de guardar' }),
+          el('span', {
+            clase: 'aviso-titulo',
+            texto: a.nivel === 'error' ? 'Hay que corregir' : 'Revisa antes de guardar',
+          }),
           el('span', { texto: a.mensaje }),
         ])
       );
@@ -171,7 +183,12 @@
     }
 
     const registro = Formulario.leerFormulario(formulario, actividad, config);
-    const avisos = Calculos.revisarRegistro(registro, actividad, config.PROYECTO, config.JORNADA);
+
+    // El acumulado de la actividad se consulta aca y se pasa a la revision. En el
+    // proyecto hermano esta funcion existia pero no se llamaba desde ninguna
+    // parte, asi que el aviso por superar la meta nunca aparecio.
+    const acumuladoPrevio = Almacenamiento.acumuladoPorActividad(actividad.codigo, registro.record_id);
+    const avisos = Calculos.revisarRegistro(registro, actividad, config.PROYECTO, config.JORNADA, acumuladoPrevio);
 
     if (!avisos.length) {
       guardarRegistro(registro);
@@ -226,6 +243,13 @@
   // Lista de registros
   // ---------------------------------------------------------------------------
 
+  function dato(etiqueta, valor, sinDato) {
+    return el('div', { clase: 'dato' }, [
+      el('span', { clase: 'dato-etiqueta', texto: etiqueta }),
+      el('span', { clase: 'dato-valor' + (sinDato ? ' sin-dato' : ''), texto: valor }),
+    ]);
+  }
+
   function tarjetaRegistro(registro) {
     const baja = registro.registro_activo === false;
     const marca = baja
@@ -241,39 +265,19 @@
       ]),
       el('div', {
         clase: 'tarjeta-sub',
-        texto:
-          registro.fecha + ' · ' + Indicadores.nombreSector(registro.sector) +
-          ' · ' + registro.persona_que_registra,
+        texto: registro.fecha + ' · ' + nombreSector(registro.sector) + ' · ' + registro.persona_que_registra,
       }),
       el('div', { clase: 'tarjeta-datos' }, [
-        el('div', { clase: 'dato' }, [
-          el('span', { clase: 'dato-etiqueta', texto: 'Ejecutado' }),
-          el('span', {
-            clase: 'dato-valor',
-            texto: Calculos.formatearNumero(registro.cantidad_ejecutada) + ' ' + (registro.unidad_medida || ''),
-          }),
-        ]),
-        el('div', { clase: 'dato' }, [
-          el('span', { clase: 'dato-etiqueta', texto: 'Horario' }),
-          el('span', {
-            clase: 'dato-valor',
-            texto: registro.hora_inicio + ' a ' + registro.hora_termino,
-          }),
-        ]),
-        el('div', { clase: 'dato' }, [
-          el('span', { clase: 'dato-etiqueta', texto: 'Horas-hombre' }),
-          el('span', {
-            clase: 'dato-valor',
-            texto: Calculos.formatearNumero(registro.horas_hombre, 2) + ' HH (' + registro.cantidad_trabajadores + ' personas)',
-          }),
-        ]),
-        el('div', { clase: 'dato' }, [
-          el('span', { clase: 'dato-etiqueta', texto: 'Rendimiento' }),
-          el('span', {
-            clase: 'dato-valor' + (registro.rendimiento_por_hh === null ? ' sin-dato' : ''),
-            texto: registro.rendimiento_por_hh === null ? '—' : Calculos.formatearNumero(registro.rendimiento_por_hh, 2) + ' por HH',
-          }),
-        ]),
+        dato('Ejecutado',
+          Calculos.formatearNumero(registro.cantidad_ejecutada) + ' ' + (registro.unidad_medida || '')),
+        dato('Horario', registro.hora_inicio + ' a ' + registro.hora_termino),
+        dato('Horas-hombre',
+          Calculos.formatearNumero(registro.horas_hombre, 2) + ' HH (' + registro.cantidad_trabajadores + ' personas)'),
+        dato('Rendimiento',
+          registro.rendimiento_por_hh === null || registro.rendimiento_por_hh === undefined
+            ? '—'
+            : Calculos.formatearNumero(registro.rendimiento_por_hh, 2) + ' por HH',
+          registro.rendimiento_por_hh === null || registro.rendimiento_por_hh === undefined),
       ]),
     ]);
 
@@ -307,7 +311,7 @@
     mostrarMensaje(
       '#mensaje-sync',
       resultado.resultado === 'marcado_para_baja'
-        ? 'Registro marcado como baja. Queda pendiente de sincronizar: hasta entonces, su fila sigue viva en la planilla.'
+        ? 'Registro marcado como baja. Queda pendiente de sincronizar: hasta entonces, su fila sigue vigente en la planilla.'
         : 'Registro eliminado del teléfono.',
       resultado.resultado === 'marcado_para_baja' ? 'alerta' : null
     );
@@ -343,25 +347,19 @@
   function sincronizar() {
     const boton = $('#boton-sincronizar');
     const pendientes = Almacenamiento.pendientes();
-    const costos = Almacenamiento.leerCostos();
 
     boton.disabled = true;
     boton.textContent = 'Sincronizando…';
     ocultarMensaje('#mensaje-sync');
 
-    Sincronizacion.enviar(pendientes, costos, config)
+    Sincronizacion.sincronizar(pendientes, config, function (enviados, total) {
+      boton.textContent = 'Enviando ' + enviados + ' de ' + total + '…';
+    })
       .then(function (resultado) {
-        if (resultado.ok) {
-          Almacenamiento.marcarSincronizados(resultado.recibidos.concat(resultado.bajas || []));
-          const noRecibidos = pendientes.length - (resultado.recibidos.length + (resultado.bajas || []).length);
-          mostrarMensaje(
-            '#mensaje-sync',
-            resultado.mensaje + (noRecibidos > 0 ? ' Quedaron ' + noRecibidos + ' sin confirmar; se reintentan en la próxima sincronización.' : ''),
-            noRecibidos > 0 ? 'alerta' : null
-          );
-        } else {
-          mostrarMensaje('#mensaje-sync', resultado.mensaje, 'error');
-        }
+        // Solo se marca lo que la planilla confirmo recibir. Lo demas sigue
+        // pendiente y se reintenta.
+        if (resultado.enviados.length) Almacenamiento.marcarSincronizados(resultado.enviados);
+        mostrarMensaje('#mensaje-sync', resultado.mensaje, resultado.ok ? null : 'error');
         refrescarTodo();
       })
       .finally(function () {
@@ -370,64 +368,30 @@
       });
   }
 
-  function descargarCopia() {
-    const datos = Almacenamiento.exportarTodo();
-    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
-    const enlace = document.createElement('a');
-    enlace.href = URL.createObjectURL(blob);
-    enlace.download = 'registro_fundacion_chile_' + hoyTexto() + '.json';
-    document.body.appendChild(enlace);
-    enlace.click();
-    document.body.removeChild(enlace);
-    URL.revokeObjectURL(enlace.href);
-  }
-
   // ---------------------------------------------------------------------------
-  // Costos
+  // Exportar y ajustes
   // ---------------------------------------------------------------------------
 
-  function prepararCostos() {
-    const formulario = $('#formulario-costos');
-    PantallaCostos.llenarPeriodicidades($('#camioneta_periodicidad'));
-    PantallaCostos.llenarPeriodicidades($('#banos_periodicidad'));
+  function prepararExportar() {
+    $('#nombre-hoja-kpi').textContent = 'KPI_MariaPinto';
 
-    const costos = Almacenamiento.leerCostos();
-    extras = (costos.extras || []).slice();
-    PantallaCostos.escribir(formulario, costos);
-    PantallaCostos.dibujarExtras($('#lista-extras'), extras, function () {});
-    actualizarAyudaCostoHH();
-
-    $('#costo_hh').addEventListener('input', actualizarAyudaCostoHH);
-
-    $('#boton-agregar-extra').addEventListener('click', function () {
-      extras.push({ concepto: '', monto: null, fecha: hoyTexto() });
-      PantallaCostos.dibujarExtras($('#lista-extras'), extras, function () {});
+    $('#boton-exportar-excel').addEventListener('click', function () {
+      Exportar.aExcel(Almacenamiento.listar(), config);
+    });
+    $('#boton-exportar-json').addEventListener('click', function () {
+      Exportar.aJson(Almacenamiento.exportarTodo());
     });
 
-    formulario.addEventListener('submit', function (evento) {
-      evento.preventDefault();
-      const costosNuevos = PantallaCostos.leer(formulario, extras);
-      Almacenamiento.guardarCostos(costosNuevos);
-      extras = costosNuevos.extras.slice();
-      PantallaCostos.dibujarExtras($('#lista-extras'), extras, function () {});
-      mostrarMensaje('#mensaje-costos', 'Parámetros económicos guardados. Los indicadores se recalcularon.', null);
-      refrescarTodo();
-    });
-  }
-
-  function actualizarAyudaCostoHH() {
-    $('#ayuda-costo-hh').textContent = PantallaCostos.ayudaCostoHH($('#costo_hh').value, config);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Ajustes
-  // ---------------------------------------------------------------------------
-
-  function prepararAjustes() {
     $('#url_apps_script').value = Sincronizacion.leerUrl();
     $('#boton-guardar-url').addEventListener('click', function () {
       Sincronizacion.guardarUrl($('#url_apps_script').value);
-      mostrarMensaje('#mensaje-sync', 'Dirección guardada.', null);
+      mostrarMensaje('#mensaje-url', 'Dirección guardada en este teléfono.', null);
+      comprobarPlanilla();
+    });
+    $('#boton-restablecer-url').addEventListener('click', function () {
+      $('#url_apps_script').value = Sincronizacion.restablecerUrl();
+      mostrarMensaje('#mensaje-url', 'Se volvió a la dirección que trae la aplicación.', null);
+      comprobarPlanilla();
     });
 
     const horasDia = Calculos.horasJornadaEstandar(config.JORNADA);
@@ -456,6 +420,42 @@
       'Aplicación ' + raiz.APP_VERSION + '. ' +
       config.ACTIVIDADES.length + ' actividades registrables de las ' +
       (config.ACTIVIDADES.length + config.ACTIVIDADES_FUERA_DE_APP.length) + ' de la EDT.';
+
+    comprobarPlanilla();
+  }
+
+  /**
+   * Pregunta al Apps Script en que planilla escribe.
+   *
+   * Vale la pena mostrarlo: si alguien apunto el script a otra planilla, o quedo
+   * una implementacion vieja dando vueltas, aca se ve sin tener que abrir Google.
+   */
+  function comprobarPlanilla() {
+    const ayuda = $('#ayuda-planilla');
+    const enlace = $('#enlace-planilla');
+
+    if (!Sincronizacion.leerUrl()) {
+      enlace.hidden = true;
+      ayuda.textContent =
+        'Todavía no hay dirección del Apps Script configurada, así que no se puede saber en qué planilla escribe.';
+      return;
+    }
+
+    ayuda.textContent = 'Comprobando en qué planilla escribe…';
+    Sincronizacion.comprobar().then(function (datos) {
+      if (!datos.ok || datos.estado === 'error') {
+        enlace.hidden = true;
+        ayuda.textContent = datos.mensaje || 'No se pudo comprobar la planilla.';
+        return;
+      }
+      if (datos.planilla_url) {
+        enlace.href = datos.planilla_url;
+        enlace.hidden = false;
+      }
+      ayuda.textContent =
+        'Escribe en la planilla «' + (datos.planilla_nombre || 'sin nombre') + '», hojas: ' +
+        (datos.hojas_destino || []).join(', ') + '.';
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -486,15 +486,8 @@
   }
 
   function refrescarTodo() {
-    const registros = Almacenamiento.listar();
-    const costos = Almacenamiento.leerCostos();
-    const hoy = hoyTexto();
-
     actualizarChips();
     dibujarRegistros();
-    Indicadores.tarjetasProyecto($('#tarjetas-proyecto'), registros, config, hoy);
-    Indicadores.dibujarActividades($('#indicadores-actividades'), registros, config, hoy);
-    Indicadores.dibujarEconomicos($('#indicadores-economicos'), registros, costos, config, hoy);
   }
 
   // ---------------------------------------------------------------------------
@@ -519,7 +512,6 @@
     });
 
     $('#boton-sincronizar').addEventListener('click', sincronizar);
-    $('#boton-exportar').addEventListener('click', descargarCopia);
 
     document.querySelectorAll('.nav-boton').forEach(function (boton) {
       boton.addEventListener('click', function () { irA(boton.dataset.pantalla); });
@@ -528,8 +520,7 @@
     raiz.addEventListener('online', actualizarChips);
     raiz.addEventListener('offline', actualizarChips);
 
-    prepararCostos();
-    prepararAjustes();
+    prepararExportar();
     prepararFormulario({ conservarActividad: false });
     refrescarTodo();
 

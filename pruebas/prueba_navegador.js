@@ -56,6 +56,18 @@ function revisar(nombre, condicion, detalle) {
   console.log((condicion ? '  ok   ' : '  FALLA ') + nombre + (condicion || !detalle ? '' : '\n        ' + detalle));
 }
 
+function registros(pagina) {
+  return pagina.evaluate(() => JSON.parse(localStorage.getItem('fch_registros_v1') || '[]'));
+}
+
+async function llenarJornada(pagina, cantidad) {
+  await pagina.fill('#campo_persona_que_registra', 'Persona de prueba');
+  await pagina.click('.opciones-boton label:has-text("Las Mercedes")');
+  await pagina.fill('#campo_cantidad_trabajadores', '8');
+  await pagina.fill('#campo_fecha', '2026-08-12');
+  await pagina.fill('#campo_cantidad_zanjas_marcadas', String(cantidad));
+}
+
 async function main() {
   const { servidor, puerto } = await servir();
   const base = 'http://127.0.0.1:' + puerto + '/index.html';
@@ -79,6 +91,13 @@ async function main() {
 
   await pagina.goto(base);
   await esperarActividades(pagina);
+
+  // --- La aplicacion es solo de registro ------------------------------------
+
+  const pantallas = await pagina.$$eval('.nav-boton', (n) => n.map((b) => b.dataset.pantalla));
+  revisar('la aplicacion tiene solo las pantallas de registro, no de indicadores',
+    JSON.stringify(pantallas) === JSON.stringify(['registrar', 'registros', 'exportar']),
+    'tiene ' + JSON.stringify(pantallas));
 
   // --- Actividades ofrecidas ------------------------------------------------
 
@@ -108,10 +127,7 @@ async function main() {
 
   // --- Panel de calculados --------------------------------------------------
 
-  await pagina.fill('#campo_persona_que_registra', 'Persona de prueba');
-  await pagina.click('.opciones-boton label:has-text("Las Mercedes")');
-  await pagina.fill('#campo_cantidad_trabajadores', '8');
-  await pagina.fill('#campo_fecha', '2026-08-12');
+  await llenarJornada(pagina, 45);
 
   const neta = await pagina.textContent('#calc-neta');
   const colacion = await pagina.textContent('#calc-colacion');
@@ -125,24 +141,26 @@ async function main() {
 
   // --- Caso de control: guardar una jornada normal --------------------------
 
-  await pagina.fill('#campo_cantidad_zanjas_marcadas', '45');
   if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '1-formulario.png'), fullPage: true });
   await pagina.click('#boton-guardar');
   await pagina.waitForSelector('#mensaje-guardado:not([hidden])');
 
-  const avisosVisibles = await pagina.isVisible('#avisos');
-  revisar('CASO DE CONTROL: una jornada normal se guarda sin ninguna advertencia', !avisosVisibles);
+  revisar('CASO DE CONTROL: una jornada normal se guarda sin ninguna advertencia',
+    !(await pagina.isVisible('#avisos')));
 
   const mensaje = await pagina.textContent('#mensaje-guardado');
   revisar('al guardar se dice que queda pendiente de sincronizar', /pendiente de sincronizar/.test(mensaje), mensaje);
 
-  const guardados = await pagina.evaluate(() => JSON.parse(localStorage.getItem('fch_registros_v1') || '[]'));
+  const guardados = await registros(pagina);
   revisar('el registro queda guardado en el dispositivo', guardados.length === 1);
   revisar('la duracion guardada descuenta la colacion', guardados[0] && guardados[0].duracion_horas === 7.5,
     'quedo ' + (guardados[0] || {}).duracion_horas);
   revisar('las horas-hombre guardadas son 60', guardados[0] && guardados[0].horas_hombre === 60);
   revisar('la cantidad ejecutada copia el campo que declara la EDT',
     guardados[0] && guardados[0].cantidad_ejecutada === 45);
+  revisar('el rendimiento del registro queda calculado',
+    guardados[0] && guardados[0].rendimiento_por_hh === 0.75,
+    'quedo ' + (guardados[0] || {}).rendimiento_por_hh);
 
   // --- Horas invertidas: tiene que bloquear ---------------------------------
 
@@ -154,9 +172,7 @@ async function main() {
 
   const textoError = await pagina.textContent('#avisos');
   revisar('las horas invertidas se detienen antes de guardar', /anterior/.test(textoError), textoError.slice(0, 120));
-
-  const trasError = await pagina.evaluate(() => JSON.parse(localStorage.getItem('fch_registros_v1') || '[]'));
-  revisar('un dato imposible no llega a guardarse', trasError.length === 1);
+  revisar('un dato imposible no llega a guardarse', (await registros(pagina)).length === 1);
 
   // --- Cantidad fuera de rango: avisa pero deja guardar ----------------------
 
@@ -174,54 +190,24 @@ async function main() {
 
   await pagina.click('button:has-text("Confirmar y guardar")');
   await pagina.waitForSelector('#mensaje-guardado:not([hidden])');
-  const trasConfirmar = await pagina.evaluate(() => JSON.parse(localStorage.getItem('fch_registros_v1') || '[]'));
-  revisar('el aviso no bloquea: al confirmar, el registro se guarda', trasConfirmar.length === 2);
+  revisar('el aviso no bloquea: al confirmar, el registro se guarda',
+    (await registros(pagina)).length === 2);
 
-  // --- Indicadores ----------------------------------------------------------
+  // --- Aviso por acumulado --------------------------------------------------
+  // En el proyecto hermano este calculo existia pero no se llamaba desde ninguna
+  // parte, asi que el aviso nunca aparecio. Aca se comprueba en pantalla.
 
-  await pagina.click('.nav-boton[data-pantalla="indicadores"]');
-  await pagina.waitForSelector('#indicadores-actividades .tarjeta');
+  await pagina.fill('#campo_cantidad_zanjas_marcadas', '1000');
+  await pagina.click('#boton-guardar');
+  await pagina.waitForSelector('#avisos:not([hidden])');
 
-  const textoIndicadores = await pagina.textContent('#indicadores-actividades');
-  revisar('el avance acumulado suma los dos registros (45 + 900 = 945)', /945/.test(textoIndicadores));
-  revisar('se muestra el rendimiento por hora-hombre', /por HH/.test(textoIndicadores));
-  revisar('se muestra el porcentaje de avance contra la meta de la EDT', /%/.test(textoIndicadores));
-  revisar('se muestra el ritmo requerido para el plazo restante', /Ritmo requerido/.test(textoIndicadores));
+  const textoAcumulado = await pagina.textContent('#avisos');
+  revisar('el aviso por superar la meta con el acumulado aparece de verdad',
+    /acumulado/.test(textoAcumulado) && /1\.800/.test(textoAcumulado), textoAcumulado.slice(0, 220));
 
-  const economicosSinDatos = await pagina.textContent('#indicadores-economicos');
-  revisar('sin costos cargados se dice que faltan valores y no se inventa ninguno',
-    /Faltan valores/.test(economicosSinDatos) && /—/.test(economicosSinDatos));
-
-  if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '3-indicadores.png'), fullPage: true });
-
-  // --- Costos ---------------------------------------------------------------
-
-  await pagina.click('.nav-boton[data-pantalla="costos"]');
-  await pagina.fill('#costo_hh', '4000');
-
-  const ayudaHH = await pagina.textContent('#ayuda-costo-hh');
-  revisar('el costo por hora se traduce a costo por dia para poder revisarlo', /30\.000/.test(ayudaHH), ayudaHH);
-
-  await pagina.fill('#camioneta_monto', '600000');
-  await pagina.selectOption('#camioneta_periodicidad', 'mes');
-  await pagina.fill('#banos_monto', '200000');
-  await pagina.selectOption('#banos_periodicidad', 'mes');
-
-  await pagina.click('#boton-agregar-extra');
-  await pagina.fill('.fila-extra input[type="text"]', 'Combustible');
-  await pagina.fill('.fila-extra input[type="number"]', '150000');
-  await pagina.click('#formulario-costos button[type="submit"]');
-  await pagina.waitForSelector('#mensaje-costos:not([hidden])');
-
-  if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '4-costos.png'), fullPage: true });
-
-  await pagina.click('.nav-boton[data-pantalla="indicadores"]');
-  const economicos = await pagina.textContent('#indicadores-economicos');
-  revisar('con el costo de la hora-hombre cargado aparece el costo de mano de obra',
-    /\$/.test(economicos) && !/Faltan valores/.test(economicos), economicos.slice(0, 200));
-  revisar('aparece el costo por unidad ejecutada', /Costo por unidad ejecutada/.test(economicos));
-  revisar('se distingue el dato duro de la estimacion con indirectos',
-    /estimación/i.test(economicos) && /dato duro/i.test(economicos));
+  await pagina.click('button:has-text("Volver a revisar")');
+  revisar('«Volver a revisar» cierra los avisos sin guardar',
+    !(await pagina.isVisible('#avisos')) && (await registros(pagina)).length === 2);
 
   // --- Sincronizacion sin configurar ----------------------------------------
 
@@ -230,50 +216,85 @@ async function main() {
   await pagina.waitForSelector('#mensaje-sync:not([hidden])');
   const mensajeSync = await pagina.textContent('#mensaje-sync');
   revisar('sin direccion configurada, sincronizar explica que falta y no pierde nada',
-    /Ajustes/.test(mensajeSync), mensajeSync);
+    /Exportar/.test(mensajeSync), mensajeSync);
+  revisar('los registros siguen ahi despues de un intento fallido de sincronizar',
+    (await registros(pagina)).length === 2);
 
-  // --- Borrado --------------------------------------------------------------
+  if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '3-registros.png'), fullPage: true });
 
-  pagina.on('dialog', (d) => d.accept());
-  await pagina.click('.tarjeta button:has-text("Eliminar")');
-  const trasBorrar = await pagina.evaluate(() => JSON.parse(localStorage.getItem('fch_registros_v1') || '[]'));
-  revisar('un registro no sincronizado se borra del dispositivo', trasBorrar.length === 1);
+  // --- Exportar -------------------------------------------------------------
 
-  // Un registro ya sincronizado no se puede borrar sin dejar rastro.
-  await pagina.evaluate(() => {
-    const registros = JSON.parse(localStorage.getItem('fch_registros_v1'));
-    registros[0].estado_sync = 'sincronizado';
-    localStorage.setItem('fch_registros_v1', JSON.stringify(registros));
-  });
-  await pagina.reload();
-  await pagina.click('.nav-boton[data-pantalla="registros"]');
-  await pagina.click('.tarjeta button:has-text("Eliminar")');
-  await pagina.waitForSelector('#mensaje-sync:not([hidden])');
+  await pagina.click('.nav-boton[data-pantalla="exportar"]');
 
-  const trasBorrarSincronizado = await pagina.evaluate(() =>
-    JSON.parse(localStorage.getItem('fch_registros_v1'))
-  );
-  revisar('borrar un registro ya sincronizado lo marca como baja en vez de hacerlo desaparecer',
-    trasBorrarSincronizado.length === 1 && trasBorrarSincronizado[0].registro_activo === false);
+  const textoExportar = await pagina.textContent('#pantalla-exportar');
+  revisar('la pantalla Exportar dice donde se ven los indicadores',
+    /planilla de Google/.test(textoExportar) && /KPI/.test(textoExportar));
+  // \s+ y no un espacio: el texto viene del HTML y puede traer un salto de linea
+  // en medio de la frase.
+  revisar('se explica que las formulas se recalculan solas',
+    /recalculan\s+solas/.test(textoExportar));
 
-  const mensajeBaja = await pagina.textContent('#mensaje-sync');
-  revisar('se advierte que la planilla sigue con la fila hasta sincronizar',
-    /planilla/.test(mensajeBaja), mensajeBaja);
+  const descargaExcel = pagina.waitForEvent('download');
+  await pagina.click('#boton-exportar-excel');
+  const excel = await descargaExcel;
+  const rutaExcel = await excel.path();
+  const bytes = fs.readFileSync(rutaExcel);
+  revisar('el respaldo en Excel se descarga y es un archivo real',
+    /\.xlsx$/.test(excel.suggestedFilename()) && bytes.length > 500 &&
+      bytes[0] === 0x50 && bytes[1] === 0x4b,
+    excel.suggestedFilename() + ', ' + bytes.length + ' bytes');
 
-  const textoIndicadoresTrasBaja = await pagina.textContent('#indicadores-actividades');
-  revisar('un registro dado de baja deja de sumar en los indicadores',
-    !/945/.test(textoIndicadoresTrasBaja));
-
-  // --- Ajustes --------------------------------------------------------------
-
-  await pagina.click('.nav-boton[data-pantalla="ajustes"]');
-  const textoFuera = await pagina.textContent('#lista-fuera-app');
-  revisar('las actividades fuera de la aplicacion quedan listadas en Ajustes, no escondidas',
-    /3\.1/.test(textoFuera) && /11\.3/.test(textoFuera));
+  const descargaJson = pagina.waitForEvent('download');
+  await pagina.click('#boton-exportar-json');
+  const json = await descargaJson;
+  const contenido = JSON.parse(fs.readFileSync(await json.path(), 'utf8'));
+  revisar('el respaldo en JSON trae los registros',
+    Array.isArray(contenido.registros) && contenido.registros.length === 2,
+    json.suggestedFilename());
 
   const textoJornada = await pagina.textContent('#texto-jornada');
   revisar('se explica la jornada y el criterio de la colacion',
     /08:00/.test(textoJornada) && /7,5/.test(textoJornada), textoJornada);
+
+  const textoFuera = await pagina.textContent('#lista-fuera-app');
+  revisar('las actividades fuera de la aplicacion quedan listadas, no escondidas',
+    /3\.1/.test(textoFuera) && /11\.3/.test(textoFuera));
+
+  const textoVersion = await pagina.textContent('#texto-version');
+  revisar('la pantalla muestra la version y no un "undefined"',
+    /0\.1\.0-beta/.test(textoVersion) && !/undefined/.test(textoVersion), textoVersion);
+
+  if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '4-exportar.png'), fullPage: true });
+
+  // --- Borrado --------------------------------------------------------------
+
+  pagina.on('dialog', (d) => d.accept());
+  await pagina.click('.nav-boton[data-pantalla="registros"]');
+  await pagina.click('.tarjeta button:has-text("Eliminar")');
+  revisar('un registro no sincronizado se borra del dispositivo',
+    (await registros(pagina)).length === 1);
+
+  // Un registro ya sincronizado no se puede borrar sin dejar rastro.
+  await pagina.evaluate(() => {
+    const guardados = JSON.parse(localStorage.getItem('fch_registros_v1'));
+    guardados[0].estado_sync = 'sincronizado';
+    localStorage.setItem('fch_registros_v1', JSON.stringify(guardados));
+  });
+  await pagina.reload();
+  await esperarActividades(pagina);
+  await pagina.click('.nav-boton[data-pantalla="registros"]');
+  await pagina.click('.tarjeta button:has-text("Eliminar")');
+  await pagina.waitForSelector('#mensaje-sync:not([hidden])');
+
+  const trasBaja = await registros(pagina);
+  revisar('borrar un registro ya sincronizado lo marca como baja en vez de hacerlo desaparecer',
+    trasBaja.length === 1 && trasBaja[0].registro_activo === false);
+  revisar('la baja vuelve a quedar pendiente, para que la planilla se entere',
+    trasBaja[0] && trasBaja[0].estado_sync === 'pendiente');
+
+  const mensajeBaja = await pagina.textContent('#mensaje-sync');
+  revisar('se advierte que la planilla sigue con la fila hasta sincronizar',
+    /planilla/.test(mensajeBaja), mensajeBaja);
 
   // --- Sin conexion ---------------------------------------------------------
 
@@ -283,13 +304,98 @@ async function main() {
   const opcionesSinRed = await pagina.$$eval('#codigo_edt option', (n) => n.filter((o) => o.value).length);
   revisar('la aplicacion carga y permite registrar sin conexion', opcionesSinRed === 11);
 
+  await pagina.selectOption('#codigo_edt', '2.2');
+  await pagina.waitForSelector('#campo_metros_microterraza_marcados');
+  await pagina.fill('#campo_persona_que_registra', 'Persona de prueba');
+  await pagina.click('.opciones-boton label:has-text("Ibacache")');
+  await pagina.fill('#campo_cantidad_trabajadores', '5');
+  await pagina.fill('#campo_fecha', '2026-08-13');
+  await pagina.fill('#campo_metros_microterraza_marcados', '40');
+  await pagina.click('#boton-guardar');
+  await pagina.waitForSelector('#mensaje-guardado:not([hidden])');
+  revisar('sin conexion se puede guardar un registro nuevo', (await registros(pagina)).length === 2);
+
   const chip = await pagina.textContent('#estado-conexion');
   revisar('se avisa que no hay conexion y que igual se puede registrar', /Sin conexión/.test(chip), chip);
   await contexto.setOffline(false);
 
+  // --- Sincronizacion contra un servidor de mentira --------------------------
+  // Se intercepta el envio para mirar exactamente que sale del telefono. Es la
+  // unica forma de comprobar el formato sin escribir en la planilla de verdad.
+
+  const enviados = [];
+  const consultas = [];
+  await pagina.route('**/macros/s/**', async (ruta) => {
+    const peticion = ruta.request();
+    // La aplicacion hace dos cosas distintas contra la misma direccion: consulta
+    // (GET) en que planilla escribe, y envia (POST) los registros.
+    if (peticion.method() === 'POST') {
+      enviados.push({ tipoContenido: peticion.headers()['content-type'], cuerpo: peticion.postData() });
+    } else {
+      consultas.push(peticion.method());
+    }
+    await ruta.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        estado: 'ok',
+        record_id: 'confirmado',
+        planilla_nombre: 'Planilla de prueba',
+        planilla_url: 'https://docs.google.com/spreadsheets/d/prueba/edit',
+        hojas_destino: ['Registros_MariaPinto', 'KPI_MariaPinto', 'Costos_MariaPinto'],
+      }),
+    });
+  });
+
+  await pagina.click('.nav-boton[data-pantalla="exportar"]');
+  await pagina.fill('#url_apps_script', 'https://script.google.com/macros/s/prueba/exec');
+  await pagina.click('#boton-guardar-url');
+  await pagina.click('.nav-boton[data-pantalla="registros"]');
+  await pagina.click('#boton-sincronizar');
+  await pagina.waitForFunction(() => !document.querySelector('#boton-sincronizar').disabled);
+
+  revisar('se envia un registro por peticion', enviados.length === 2, 'se enviaron ' + enviados.length);
+  revisar('la aplicacion pregunta a la planilla en cual escribe',
+    consultas.length >= 1, 'consultas: ' + consultas.length);
+
+  const primero = enviados[0] || {};
+  revisar('el envio va como formulario, para no gatillar la consulta previa de permisos',
+    /application\/x-www-form-urlencoded/.test(primero.tipoContenido || ''), primero.tipoContenido);
+
+  let cuerpo = {};
+  try {
+    cuerpo = JSON.parse(decodeURIComponent((primero.cuerpo || '').replace(/^data=/, '')));
+  } catch (e) { /* queda vacio y la comprobacion falla */ }
+
+  revisar('el envio declara su tipo, para que el script no confunda proyectos',
+    cuerpo.tipo === 'registro_fundacion_chile', JSON.stringify(cuerpo.tipo));
+  revisar('el envio lleva la version de la aplicacion que lo generó',
+    cuerpo.version_app === '0.1.0-beta', JSON.stringify(cuerpo.version_app));
+  revisar('el envio lleva el sector con su nombre visible, no el codigo interno',
+    cuerpo.registro && cuerpo.registro.sector === 'Las Mercedes',
+    JSON.stringify(cuerpo.registro && cuerpo.registro.sector));
+  revisar('el campo propio de la actividad viaja en su propia columna',
+    cuerpo.registro && cuerpo.registro.cantidad_zanjas_marcadas !== undefined &&
+      cuerpo.registro.detalle === undefined,
+    JSON.stringify(cuerpo.registro && cuerpo.registro.cantidad_zanjas_marcadas));
+
+  const trasSync = await registros(pagina);
+  revisar('lo confirmado por la planilla queda marcado como sincronizado',
+    trasSync.every((r) => r.estado_sync === 'sincronizado'),
+    JSON.stringify(trasSync.map((r) => r.estado_sync)));
+
+  const chipPendientes = await pagina.textContent('#estado-pendientes');
+  revisar('el aviso de pendientes desaparece al quedar todo sincronizado',
+    /Todo sincronizado/.test(chipPendientes), chipPendientes);
+
+  await pagina.unroute('**/macros/s/**');
+  await pagina.click('.nav-boton[data-pantalla="exportar"]');
+  await pagina.click('#boton-restablecer-url');
+
+
   // --- Errores de consola ---------------------------------------------------
 
-  const erroresReales = erroresConsola.filter((e) => !/favicon/i.test(e));
+  const erroresReales = erroresConsola.filter((e) => !/favicon|Failed to load resource/i.test(e));
   revisar('la aplicacion no arroja errores en la consola', erroresReales.length === 0,
     erroresReales.join(' | '));
 

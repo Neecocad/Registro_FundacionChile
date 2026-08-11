@@ -11,7 +11,6 @@
   'use strict';
 
   const CLAVE_REGISTROS = 'fch_registros_v1';
-  const CLAVE_COSTOS = 'fch_costos_v1';
   const CLAVE_PREFERENCIAS = 'fch_preferencias_v1';
 
   function almacen() {
@@ -61,7 +60,7 @@
     return leerJSON(CLAVE_REGISTROS, []);
   }
 
-  /** Solo los registros vigentes; es lo que alimenta todos los indicadores. */
+  /** Solo los registros vigentes; los dados de baja quedan guardados pero aparte. */
   function listarActivos() {
     return listar().filter(function (r) { return r.registro_activo !== false; });
   }
@@ -143,17 +142,22 @@
     return registros;
   }
 
-  // --- Parametros economicos -------------------------------------------------
-
-  function leerCostos() {
-    const base = raiz.Calculos ? raiz.Calculos.costosVacios() : {};
-    return Object.assign(base, leerJSON(CLAVE_COSTOS, {}));
-  }
-
-  function guardarCostos(costos) {
-    const copia = Object.assign({}, costos, { actualizado: ahora(), estado_sync: 'pendiente' });
-    escribirJSON(CLAVE_COSTOS, copia);
-    return copia;
+  /**
+   * Suma lo ya ejecutado de una actividad en este dispositivo.
+   *
+   * Sirve para avisar cuando un registro nuevo hace que el acumulado pase la
+   * meta. Es lo registrado en ESTE telefono: si el equipo usa varios, cada uno
+   * ve solo lo suyo, y el aviso lo dice.
+   */
+  function acumuladoPorActividad(codigoEdt, excluirRecordId) {
+    return listarActivos()
+      .filter(function (r) {
+        return r.codigo_edt === codigoEdt && r.record_id !== excluirRecordId;
+      })
+      .reduce(function (total, r) {
+        const n = Number(r.cantidad_ejecutada);
+        return total + (Number.isFinite(n) ? n : 0);
+      }, 0);
   }
 
   // --- Preferencias del dispositivo -----------------------------------------
@@ -173,7 +177,6 @@
   function exportarTodo() {
     return {
       registros: listar(),
-      costos: leerCostos(),
       preferencias: leerPreferencias(),
       exportado: ahora(),
     };
@@ -181,7 +184,6 @@
 
   const api = {
     CLAVE_REGISTROS: CLAVE_REGISTROS,
-    CLAVE_COSTOS: CLAVE_COSTOS,
     nuevoId: nuevoId,
     listar: listar,
     listarActivos: listarActivos,
@@ -190,8 +192,7 @@
     eliminar: eliminar,
     pendientes: pendientes,
     marcarSincronizados: marcarSincronizados,
-    leerCostos: leerCostos,
-    guardarCostos: guardarCostos,
+    acumuladoPorActividad: acumuladoPorActividad,
     leerPreferencias: leerPreferencias,
     guardarPreferencias: guardarPreferencias,
     exportarTodo: exportarTodo,

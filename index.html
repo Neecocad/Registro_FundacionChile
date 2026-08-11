@@ -80,88 +80,57 @@
     <p class="ayuda" id="resumen-registros"></p>
     <div class="acciones acciones-linea">
       <button type="button" class="boton boton-primario" id="boton-sincronizar">Sincronizar ahora</button>
-      <button type="button" class="boton boton-secundario" id="boton-exportar">Descargar copia (JSON)</button>
     </div>
     <p id="mensaje-sync" class="mensaje" hidden></p>
     <div id="lista-registros" class="lista"></div>
   </section>
 
   <!-- ------------------------------------------------------------------ -->
-  <section id="pantalla-indicadores" class="pantalla">
-    <h2>Indicadores</h2>
-    <div id="tarjetas-proyecto" class="tarjetas"></div>
-
-    <h3>Rendimiento por actividad</h3>
-    <p class="ayuda">
-      Cada actividad se mide en su propia unidad. Las unidades no se suman ni se
-      comparan entre actividades: metros de sendero y número de zanjas no son lo mismo.
-    </p>
-    <div id="indicadores-actividades" class="lista"></div>
-
-    <h3>Indicadores económicos</h3>
-    <div id="indicadores-economicos"></div>
-  </section>
-
-  <!-- ------------------------------------------------------------------ -->
-  <section id="pantalla-costos" class="pantalla">
-    <h2>Parámetros económicos</h2>
-    <p class="ayuda">
-      Estos valores no vienen de la EDT: los llenas tú. Mientras un valor esté
-      vacío, los indicadores que dependen de él muestran una raya en vez de un
-      número. Ninguno se estima solo.
-    </p>
-    <form id="formulario-costos">
-      <fieldset class="bloque">
-        <legend>Mano de obra</legend>
-        <label for="costo_hh">Costo de una hora-hombre (pesos)</label>
-        <input type="number" id="costo_hh" name="costo_hh" min="0" step="1" inputmode="numeric">
-        <p class="ayuda" id="ayuda-costo-hh"></p>
-      </fieldset>
-
-      <fieldset class="bloque">
-        <legend>Arriendo de camioneta</legend>
-        <label for="camioneta_monto">Monto (pesos)</label>
-        <input type="number" id="camioneta_monto" name="camioneta_monto" min="0" step="1" inputmode="numeric">
-        <label for="camioneta_periodicidad">Periodicidad</label>
-        <select id="camioneta_periodicidad" name="camioneta_periodicidad"></select>
-      </fieldset>
-
-      <fieldset class="bloque">
-        <legend>Arriendo de baños</legend>
-        <label for="banos_monto">Monto (pesos)</label>
-        <input type="number" id="banos_monto" name="banos_monto" min="0" step="1" inputmode="numeric">
-        <label for="banos_periodicidad">Periodicidad</label>
-        <select id="banos_periodicidad" name="banos_periodicidad"></select>
-      </fieldset>
-
-      <fieldset class="bloque">
-        <legend>Costos extras</legend>
-        <p class="ayuda">Combustible, herramientas, fletes, imprevistos: cualquier gasto que no sea de los anteriores.</p>
-        <div id="lista-extras"></div>
-        <button type="button" class="boton boton-secundario" id="boton-agregar-extra">Agregar costo extra</button>
-      </fieldset>
-
-      <div class="acciones">
-        <button type="submit" class="boton boton-primario">Guardar parámetros</button>
-      </div>
-      <p id="mensaje-costos" class="mensaje" hidden></p>
-    </form>
-  </section>
-
-  <!-- ------------------------------------------------------------------ -->
-  <section id="pantalla-ajustes" class="pantalla">
-    <h2>Ajustes e información</h2>
+  <section id="pantalla-exportar" class="pantalla">
+    <h2>Exportar y ajustes</h2>
 
     <div class="bloque">
-      <h3>Sincronización</h3>
+      <h3>Dónde se ven los indicadores</h3>
+      <p class="ayuda">
+        Esta aplicación solo registra. El avance, el rendimiento por hora-hombre y
+        el costo se calculan en la planilla de Google, en la hoja
+        <strong id="nombre-hoja-kpi">KPI</strong>, con fórmulas que se recalculan
+        solas cada vez que llega un registro nuevo. No hay que volver a ejecutar
+        nada.
+      </p>
+      <a id="enlace-planilla" class="boton boton-primario boton-enlace" href="#" target="_blank" rel="noopener" hidden>
+        Abrir la planilla
+      </a>
+      <p class="ayuda" id="ayuda-planilla"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Copia de respaldo</h3>
+      <p class="ayuda">
+        Sirve si un teléfono se pierde o si hay que revisar los datos sin abrir la
+        planilla. No reemplaza a la sincronización: los indicadores salen de la
+        planilla, no de estos archivos.
+      </p>
+      <div class="acciones">
+        <button type="button" class="boton boton-secundario" id="boton-exportar-excel">Descargar Excel</button>
+        <button type="button" class="boton boton-secundario" id="boton-exportar-json">Descargar JSON</button>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h3>Dirección de sincronización</h3>
+      <p class="ayuda">
+        La aplicación ya trae la dirección del Apps Script. Solo hay que escribirla
+        aquí si se creó una implementación nueva y todavía no se ha publicado una
+        versión de la aplicación con esa dirección.
+      </p>
       <label for="url_apps_script">Dirección del Apps Script</label>
       <input type="url" id="url_apps_script" placeholder="https://script.google.com/macros/s/…/exec">
-      <p class="ayuda">
-        Es la dirección que entrega Google al implementar el Apps Script. Si cambias
-        la implementación en vez de publicar una nueva versión, Google entrega otra
-        dirección y hay que actualizarla en cada equipo.
-      </p>
-      <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar dirección</button>
+      <div class="acciones">
+        <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar dirección</button>
+        <button type="button" class="boton boton-secundario" id="boton-restablecer-url">Volver a la de la app</button>
+      </div>
+      <p id="mensaje-url" class="mensaje" hidden></p>
     </div>
 
     <div class="bloque">
@@ -179,7 +148,7 @@
       <p class="ayuda">
         La EDT tiene 32 actividades. Estas quedan fuera del formulario porque la
         especificación indica que no se registran en la aplicación. Se listan aquí
-        solo para que se sepa que existen y dónde están.
+        para que se sepa que existen, y llegan a la planilla marcadas como «No».
       </p>
       <ul id="lista-fuera-app" class="lista-simple"></ul>
     </div>
@@ -199,9 +168,7 @@
 <nav class="navegacion">
   <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
   <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
-  <button type="button" data-pantalla="indicadores" class="nav-boton">Indicadores</button>
-  <button type="button" data-pantalla="costos" class="nav-boton">Costos</button>
-  <button type="button" data-pantalla="ajustes" class="nav-boton">Ajustes</button>
+  <button type="button" data-pantalla="exportar" class="nav-boton">Exportar</button>
 </nav>
 
 <script src="js/version.js"></script>
@@ -209,8 +176,8 @@
 <script src="js/calculos.js"></script>
 <script src="js/almacenamiento.js"></script>
 <script src="js/formulario.js"></script>
-<script src="js/indicadores.js"></script>
-<script src="js/costos.js"></script>
+<script src="js/xlsx-minimo.js"></script>
+<script src="js/exportar.js"></script>
 <script src="js/sincronizacion.js"></script>
 <script src="js/app.js"></script>
 </body>

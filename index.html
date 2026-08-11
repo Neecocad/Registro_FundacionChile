@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f6f4a">
+  <title>Registro en terreno — Fundación Chile</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="iconos/icono-192.png">
+  <link rel="apple-touch-icon" href="iconos/icono-192.png">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<header class="cabecera">
+  <div class="cabecera-titulo">
+    <h1 id="nombre-proyecto">Registro en terreno</h1>
+    <span class="etiqueta-beta" title="Versión de prueba: la especificación todavía puede cambiar">beta</span>
+  </div>
+  <div class="cabecera-estado">
+    <span id="estado-conexion" class="chip chip-neutro">Conexión: comprobando</span>
+    <span id="estado-pendientes" class="chip chip-neutro">Sin registros pendientes</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-registrar" class="pantalla activa">
+    <form id="formulario" novalidate>
+
+      <fieldset class="bloque">
+        <legend>Actividad</legend>
+        <label for="codigo_edt">¿Qué se está ejecutando?</label>
+        <select id="codigo_edt" name="codigo_edt" required>
+          <option value="">Selecciona una actividad…</option>
+        </select>
+        <p id="detalle-actividad" class="ayuda"></p>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Datos de la jornada</legend>
+        <div id="campos-comunes"></div>
+
+        <div class="panel-calculado" id="panel-calculado">
+          <h3>Calculado automáticamente</h3>
+          <dl>
+            <div><dt>Duración bruta</dt><dd id="calc-bruta">—</dd></div>
+            <div><dt>Descuento de colación</dt><dd id="calc-colacion">—</dd></div>
+            <div><dt>Duración trabajada</dt><dd id="calc-neta">—</dd></div>
+            <div><dt>Horas-hombre</dt><dd id="calc-hh">—</dd></div>
+          </dl>
+          <p class="ayuda" id="ayuda-colacion"></p>
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque" id="bloque-especificos" hidden>
+        <legend>Lo ejecutado</legend>
+        <div id="campos-especificos"></div>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Observaciones</legend>
+        <div id="campos-observaciones"></div>
+      </fieldset>
+
+      <div id="avisos" class="avisos" hidden></div>
+
+      <div class="acciones">
+        <button type="submit" class="boton boton-primario" id="boton-guardar">Guardar registro</button>
+        <button type="button" class="boton boton-secundario" id="boton-limpiar">Limpiar</button>
+      </div>
+      <p id="mensaje-guardado" class="mensaje" hidden></p>
+    </form>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-registros" class="pantalla">
+    <h2>Registros guardados</h2>
+    <p class="ayuda" id="resumen-registros"></p>
+    <div class="acciones acciones-linea">
+      <button type="button" class="boton boton-primario" id="boton-sincronizar">Sincronizar ahora</button>
+      <button type="button" class="boton boton-secundario" id="boton-exportar">Descargar copia (JSON)</button>
+    </div>
+    <p id="mensaje-sync" class="mensaje" hidden></p>
+    <div id="lista-registros" class="lista"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-indicadores" class="pantalla">
+    <h2>Indicadores</h2>
+    <div id="tarjetas-proyecto" class="tarjetas"></div>
+
+    <h3>Rendimiento por actividad</h3>
+    <p class="ayuda">
+      Cada actividad se mide en su propia unidad. Las unidades no se suman ni se
+      comparan entre actividades: metros de sendero y número de zanjas no son lo mismo.
+    </p>
+    <div id="indicadores-actividades" class="lista"></div>
+
+    <h3>Indicadores económicos</h3>
+    <div id="indicadores-economicos"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-costos" class="pantalla">
+    <h2>Parámetros económicos</h2>
+    <p class="ayuda">
+      Estos valores no vienen de la EDT: los llenas tú. Mientras un valor esté
+      vacío, los indicadores que dependen de él muestran una raya en vez de un
+      número. Ninguno se estima solo.
+    </p>
+    <form id="formulario-costos">
+      <fieldset class="bloque">
+        <legend>Mano de obra</legend>
+        <label for="costo_hh">Costo de una hora-hombre (pesos)</label>
+        <input type="number" id="costo_hh" name="costo_hh" min="0" step="1" inputmode="numeric">
+        <p class="ayuda" id="ayuda-costo-hh"></p>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Arriendo de camioneta</legend>
+        <label for="camioneta_monto">Monto (pesos)</label>
+        <input type="number" id="camioneta_monto" name="camioneta_monto" min="0" step="1" inputmode="numeric">
+        <label for="camioneta_periodicidad">Periodicidad</label>
+        <select id="camioneta_periodicidad" name="camioneta_periodicidad"></select>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Arriendo de baños</legend>
+        <label for="banos_monto">Monto (pesos)</label>
+        <input type="number" id="banos_monto" name="banos_monto" min="0" step="1" inputmode="numeric">
+        <label for="banos_periodicidad">Periodicidad</label>
+        <select id="banos_periodicidad" name="banos_periodicidad"></select>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Costos extras</legend>
+        <p class="ayuda">Combustible, herramientas, fletes, imprevistos: cualquier gasto que no sea de los anteriores.</p>
+        <div id="lista-extras"></div>
+        <button type="button" class="boton boton-secundario" id="boton-agregar-extra">Agregar costo extra</button>
+      </fieldset>
+
+      <div class="acciones">
+        <button type="submit" class="boton boton-primario">Guardar parámetros</button>
+      </div>
+      <p id="mensaje-costos" class="mensaje" hidden></p>
+    </form>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <section id="pantalla-ajustes" class="pantalla">
+    <h2>Ajustes e información</h2>
+
+    <div class="bloque">
+      <h3>Sincronización</h3>
+      <label for="url_apps_script">Dirección del Apps Script</label>
+      <input type="url" id="url_apps_script" placeholder="https://script.google.com/macros/s/…/exec">
+      <p class="ayuda">
+        Es la dirección que entrega Google al implementar el Apps Script. Si cambias
+        la implementación en vez de publicar una nueva versión, Google entrega otra
+        dirección y hay que actualizarla en cada equipo.
+      </p>
+      <button type="button" class="boton boton-secundario" id="boton-guardar-url">Guardar dirección</button>
+    </div>
+
+    <div class="bloque">
+      <h3>Jornada del proyecto</h3>
+      <p id="texto-jornada" class="ayuda"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Calendario</h3>
+      <p id="texto-calendario" class="ayuda"></p>
+    </div>
+
+    <div class="bloque">
+      <h3>Actividades fuera de la aplicación</h3>
+      <p class="ayuda">
+        La EDT tiene 32 actividades. Estas quedan fuera del formulario porque la
+        especificación indica que no se registran en la aplicación. Se listan aquí
+        solo para que se sepa que existen y dónde están.
+      </p>
+      <ul id="lista-fuera-app" class="lista-simple"></ul>
+    </div>
+
+    <div class="bloque">
+      <h3>Versión</h3>
+      <p id="texto-version" class="ayuda"></p>
+      <p class="ayuda">
+        Esta es una versión beta: la especificación todavía puede cambiar y hay dos
+        actividades cuyo registro en la aplicación está por confirmar.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="navegacion">
+  <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
+  <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
+  <button type="button" data-pantalla="indicadores" class="nav-boton">Indicadores</button>
+  <button type="button" data-pantalla="costos" class="nav-boton">Costos</button>
+  <button type="button" data-pantalla="ajustes" class="nav-boton">Ajustes</button>
+</nav>
+
+<script src="js/version.js"></script>
+<script src="js/config-actividades.js"></script>
+<script src="js/calculos.js"></script>
+<script src="js/almacenamiento.js"></script>
+<script src="js/formulario.js"></script>
+<script src="js/indicadores.js"></script>
+<script src="js/costos.js"></script>
+<script src="js/sincronizacion.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

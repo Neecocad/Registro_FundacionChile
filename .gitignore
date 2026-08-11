@@ -1,0 +1,11 @@
+# Dependencias de las pruebas en navegador. Se instalan con:
+#   npm install playwright
+node_modules/
+package-lock.json
+
+# Capturas de pantalla que deja `node pruebas/prueba_navegador.js --capturas`.
+pruebas/capturas/
+
+# Archivos temporales de sistema
+.DS_Store
+Thumbs.db

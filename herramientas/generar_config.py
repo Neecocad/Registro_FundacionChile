@@ -307,12 +307,14 @@ def escribir_apps_script(incluidas):
 def generar():
     proyecto, catalogos, comunes, incluidas, excluidas = leer(PLANILLA)
 
-    sello = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    # A proposito no se escribe una marca de hora: haria que cada ejecucion
+    # dejara el archivo distinto aunque la EDT no haya cambiado, ensuciando el
+    # repositorio en cada corrida de las pruebas. Cuando se genero es algo que
+    # el historial de git ya sabe.
     contenido = f"""// ARCHIVO GENERADO. No editar a mano.
 //
 // Se genera con:  python3 herramientas/generar_config.py
 // Fuente:         especificacion/EDT_Fundacion_Chile_Maria_Pinto_KPI.xlsx
-// Generado:       {sello}
 //
 // Si necesitas cambiar una meta, una unidad o un campo del formulario, cambia la
 // planilla de especificacion y vuelve a ejecutar el generador. Un cambio hecho

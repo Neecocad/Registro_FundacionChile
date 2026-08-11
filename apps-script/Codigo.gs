@@ -169,6 +169,34 @@ function doPost(e) {
 }
 
 /**
+ * Rehace las hojas calculadas ahora mismo, sin esperar a que llegue un registro.
+ *
+ * PARA QUÉ SIRVE: después de pegar una versión nueva de este script, el diseño
+ * de la hoja KPI no cambia solo. Se rehace cuando llega un registro, y si el
+ * equipo no está sincronizando en ese momento, la planilla se queda con el
+ * diseño anterior sin dar ningún aviso.
+ *
+ * CÓMO SE EJECUTA: en el editor de Apps Script, elegir «reconstruirIndicadores»
+ * en la lista de funciones de la barra superior y presionar «Ejecutar». El
+ * resultado aparece en el registro de ejecución.
+ *
+ * No toca la hoja de registros ni los valores cargados a mano en la de costos.
+ */
+function reconstruirIndicadores() {
+  if (ID_PLANILLA === 'PEGA_AQUI_EL_ID_DE_LA_PLANILLA') {
+    throw new Error('Falta configurar ID_PLANILLA en el script.');
+  }
+  var planilla = SpreadsheetApp.openById(ID_PLANILLA);
+  _asegurarCostos(planilla);
+  _asegurarKPI(planilla, true);
+
+  var mensaje = 'Hojas calculadas rehechas en «' + planilla.getName() +
+    '» con el diseño ' + KPI_VERSION + '.';
+  Logger.log(mensaje);
+  return mensaje;
+}
+
+/**
  * Diagnóstico. Abrir la dirección en el navegador dice en qué planilla escribe
  * de verdad esta implementación, sin depender de lo que diga el repositorio.
  * La aplicación lo usa para mostrar el enlace a la planilla en Exportar.
@@ -422,11 +450,12 @@ function _mesesDelProyecto() {
 // Hoja KPI
 // ---------------------------------------------------------------------------
 
-function _asegurarKPI(planilla) {
+function _asegurarKPI(planilla, forzar) {
   var hoja = _hoja(planilla, HOJA_KPI);
   // La versión vive en una celda escondida de la propia hoja: si alguien
   // duplica la planilla, la copia se lleva su versión y no se rehace de más.
-  if (hoja.getLastRow() > 0 && hoja.getRange('N1').getValue() === KPI_VERSION) return false;
+  // `forzar` lo usa reconstruirIndicadores(), que se ejecuta a mano.
+  if (!forzar && hoja.getLastRow() > 0 && hoja.getRange('N1').getValue() === KPI_VERSION) return false;
 
   _asegurarEncabezado(_hoja(planilla, HOJA_REGISTROS), COLUMNAS);
   hoja.clear();
@@ -465,7 +494,9 @@ function _construirKPI(hoja) {
   var activoRef = _ref('registro_activo');
 
   fila(['KPI · ' + NOMBRE_PROYECTO]);
-  fila(['Se recalcula solo con cada registro que llega. No hace falta volver a correr el script.']);
+  fila(['Los números se recalculan solos con cada registro que llega. El diseño de esta hoja se ' +
+    'rehace ejecutando reconstruirIndicadores() en el editor de Apps Script, después de pegar una ' +
+    'versión nueva del script.']);
   fila([]);
 
   // ---------- Calendario ----------
@@ -738,6 +769,7 @@ if (typeof module !== 'undefined' && module.exports) {
     HOJA_COSTOS: HOJA_COSTOS,
     doPost: doPost,
     doGet: doGet,
+    reconstruirIndicadores: reconstruirIndicadores,
     _registrar: _registrar,
     _asegurarEncabezado: _asegurarEncabezado,
     _asegurarCostos: _asegurarCostos,

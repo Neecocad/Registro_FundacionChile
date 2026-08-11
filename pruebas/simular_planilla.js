@@ -259,6 +259,8 @@ function cargarScript(opciones) {
         releaseLock: () => { bloqueos.soltados += 1; },
       }),
     },
+    // El registro de ejecucion del editor de Apps Script.
+    Logger: { log: () => {} },
     Utilities: {
       formatDate: (fecha) => fecha.toISOString().slice(0, 19).replace('T', ' '),
     },

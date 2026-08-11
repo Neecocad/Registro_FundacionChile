@@ -61,6 +61,16 @@ cambia nada en Google.**
 2. Guardar.
 3. **Implementar → Administrar implementaciones** → editar (el lápiz) la que ya
    existe → Versión: **Nueva versión** → Implementar.
+4. Si cambió el diseño de las hojas calculadas, ejecutar
+   **`reconstruirIndicadores`**: en la barra superior del editor, elegir esa
+   función en la lista y presionar **Ejecutar**.
+
+   Sin ese paso, la hoja KPI se rehace recién cuando llega el próximo registro.
+   Si el equipo no está sincronizando en ese momento, la planilla se queda con
+   el diseño anterior y nada lo advierte.
+
+   La función no toca la hoja de registros ni los valores cargados a mano en la
+   de costos.
 
 **«Nueva versión» y «Nueva implementación» no son lo mismo.**
 
@@ -80,6 +90,9 @@ seguirían escribiendo a la implementación antigua.
 Subir `KPI_VERSION` en `Codigo.gs`. Si no sube, el script corta apenas ve la
 misma versión guardada y la planilla conserva el diseño anterior para siempre,
 sin dar ningún error.
+
+`reconstruirIndicadores` rehace la hoja de todas formas, aunque la versión no
+haya cambiado: se ejecuta a mano y por eso no consulta la versión guardada.
 
 El script **no elimina hojas**, a propósito: en Google Sheets, las fórmulas que
 apuntan a una hoja eliminada quedan en `#REF!` y no se recuperan al crear otra

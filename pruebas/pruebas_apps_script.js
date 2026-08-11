@@ -421,6 +421,37 @@ prueba('el KPI solo se rehace cuando cambia KPI_VERSION', () => {
   igual(hojas(entorno).kpi.getRange('N1').getValue(), entorno.api.KPI_VERSION);
 });
 
+prueba('reconstruirIndicadores rehace la hoja aunque la version no haya cambiado', () => {
+  // Sin esto, el diseño nuevo solo llega cuando alguien sincroniza un registro:
+  // se pega el script, se implementa, y la planilla se queda igual sin avisar.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const kpi = hojas(entorno).kpi;
+  igual(kpi.getRange('N1').getValue(), entorno.api.KPI_VERSION);
+  igual(entorno.api._asegurarKPI(entorno.planilla), false, 'sin forzar no rehace nada');
+
+  kpi.getRange(1, 1).setValue('MARCA DE PRUEBA');
+  const mensaje = entorno.api.reconstruirIndicadores();
+
+  afirmar(/rehechas/.test(mensaje), 'debe informar que hizo: ' + mensaje);
+  afirmar(hojas(entorno).kpi.getRange(1, 1).getValue() !== 'MARCA DE PRUEBA',
+    'la hoja tenia que rehacerse');
+  igual(hojas(entorno).kpi.getRange('N1').getValue(), entorno.api.KPI_VERSION);
+});
+
+prueba('reconstruirIndicadores no toca los costos cargados a mano', () => {
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const costos = hojas(entorno).costos;
+  const filaCostoHH = costos.filasDeDatos().findIndex((f) => f[0] === 'costo_hh') + 2;
+  costos.getRange(filaCostoHH, 4).setValue(4000);
+
+  entorno.api.reconstruirIndicadores();
+  igual(costos.getRange(filaCostoHH, 4).getValue(), 4000);
+});
+
 prueba('el calendario del KPI usa el plazo y los feriados del proyecto', () => {
   const entorno = cargarScript();
   enviar(entorno.api, registro());

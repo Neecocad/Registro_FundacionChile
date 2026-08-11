@@ -173,7 +173,7 @@ sirviendo los archivos viejos para siempre.
 
 **La planilla** — `KPI_VERSION` (`apps-script/Codigo.gs`) manda el diseño de las
 hojas calculadas, que viaja por otro camino: pegar el script en el editor de
-Google. Sube cuando cambia **el diseño de las hojas**, no cuando cambia la
+Google y ejecutar ahí la función `reconstruirIndicadores`. Sube cuando cambia **el diseño de las hojas**, no cuando cambia la
 aplicación. Atarlas obligaría a volver a implementar el Apps Script por un cambio
 de pantalla, y ese es justamente el tipo de paso que se termina saltando.
 

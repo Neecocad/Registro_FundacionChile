@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
+const { APP_VERSION } = require('../js/version.js');
+
 const RAIZ = path.join(__dirname, '..');
 const CAPTURAS = process.argv.indexOf('--capturas') !== -1;
 const CARPETA_CAPTURAS = path.join(__dirname, 'capturas');
@@ -98,6 +100,37 @@ async function main() {
   revisar('la aplicacion tiene solo las pantallas de registro, no de indicadores',
     JSON.stringify(pantallas) === JSON.stringify(['registrar', 'registros', 'exportar']),
     'tiene ' + JSON.stringify(pantallas));
+
+  // --- Barra superior -------------------------------------------------------
+
+  const barra = await pagina.evaluate(() => {
+    const nav = document.querySelector('.navegacion');
+    const principal = document.querySelector('main');
+    const logo = document.querySelector('.logo');
+    return {
+      navSobreContenido: nav.getBoundingClientRect().top < principal.getBoundingClientRect().top,
+      navArriba: nav.getBoundingClientRect().top < window.innerHeight / 2,
+      logoCargado: !!logo && logo.complete && logo.naturalWidth > 0,
+      logoAlto: logo ? Math.round(logo.getBoundingClientRect().height) : 0,
+      logoAlt: logo ? logo.alt : null,
+    };
+  });
+  revisar('las pestañas quedan arriba, sobre el contenido', barra.navSobreContenido && barra.navArriba,
+    JSON.stringify(barra));
+  // `complete` sola no basta: una imagen que no existe tambien queda "completa".
+  revisar('el logo de Biocys se carga de verdad', barra.logoCargado && barra.logoAlto > 20,
+    'alto ' + barra.logoAlto + 'px, alt "' + barra.logoAlt + '"');
+
+  // La barra tiene que seguir a la vista al bajar por un formulario largo: si se
+  // fuera con el scroll, cambiar de pestaña obligaria a subir hasta arriba.
+  await pagina.evaluate(() => window.scrollTo(0, 600));
+  const navTrasBajar = await pagina.evaluate(() => {
+    const r = document.querySelector('.navegacion').getBoundingClientRect();
+    return { top: Math.round(r.top), visible: r.top >= 0 && r.bottom <= window.innerHeight };
+  });
+  revisar('las pestañas siguen visibles al bajar por la pantalla', navTrasBajar.visible,
+    JSON.stringify(navTrasBajar));
+  await pagina.evaluate(() => window.scrollTo(0, 0));
 
   // --- Actividades ofrecidas ------------------------------------------------
 
@@ -270,7 +303,7 @@ async function main() {
 
   const textoVersion = await pagina.textContent('#texto-version');
   revisar('la pantalla muestra la version y no un "undefined"',
-    /0\.1\.0-beta/.test(textoVersion) && !/undefined/.test(textoVersion), textoVersion);
+    textoVersion.indexOf(APP_VERSION) !== -1 && !/undefined/.test(textoVersion), textoVersion);
 
   if (CAPTURAS) await pagina.screenshot({ path: path.join(CARPETA_CAPTURAS, '4-exportar.png'), fullPage: true });
 
@@ -378,7 +411,7 @@ async function main() {
   revisar('el envio declara su tipo, para que el script no confunda proyectos',
     cuerpo.tipo === 'registro_fundacion_chile', JSON.stringify(cuerpo.tipo));
   revisar('el envio lleva la version de la aplicacion que lo generó',
-    cuerpo.version_app === '0.1.0-beta', JSON.stringify(cuerpo.version_app));
+    cuerpo.version_app === APP_VERSION, JSON.stringify(cuerpo.version_app));
   revisar('el envio lleva el sector con su nombre visible, no el codigo interno',
     cuerpo.registro && cuerpo.registro.sector === 'Las Mercedes',
     JSON.stringify(cuerpo.registro && cuerpo.registro.sector));

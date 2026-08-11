@@ -22,7 +22,7 @@ function paso(titulo, funcion) {
   }
 }
 
-// 1. Las tres marcas de version -------------------------------------------
+// 1. Las marcas de version -------------------------------------------------
 
 paso('Versiones', () => {
   const { verificar } = require(path.join(RAIZ, 'herramientas', 'verificar_versiones.js'));
@@ -30,7 +30,8 @@ paso('Versiones', () => {
   if (resultado.problemas.length) throw new Error(resultado.problemas.join('\n'));
   console.log('\nVersiones');
   console.log('=========');
-  console.log('  ok   las tres marcas de version coinciden (' + resultado.appVersion + ')');
+  console.log('  ok   la version de la aplicacion y la del cache coinciden (' + resultado.appVersion + ')');
+  console.log('  ---  diseno de las hojas de la planilla: KPI_VERSION ' + resultado.kpi);
 });
 
 // 2. La configuracion refleja la especificacion ----------------------------
@@ -81,8 +82,9 @@ paso('Archivos sin conexion', () => {
   const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8');
   const sw = fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8');
 
-  const enHtml = (html.match(/<script src="([^"]+)"/g) || [])
-    .map((s) => s.replace(/.*src="/, '').replace(/".*/, ''));
+  const enHtml = (html.match(/<(?:script|img) [^>]*src="([^"]+)"/g) || [])
+    .map((s) => s.replace(/.*src="/, '').replace(/".*/, ''))
+    .filter((a) => !/^https?:/.test(a));
   enHtml.push((html.match(/<link rel="stylesheet" href="([^"]+)"/) || [])[1]);
 
   const enSw = (sw.match(/'\.\/([^']+)'/g) || []).map((s) => s.replace(/^'\.\//, '').replace(/'$/, ''));

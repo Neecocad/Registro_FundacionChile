@@ -1,20 +1,19 @@
 // Marca de version de la aplicacion.
 //
-// Cuidado: esta version tiene que ir junto con otras dos, y ninguna avisa si se
-// queda atras.
+// Esta version y CACHE en sw.js son la misma cosa vista desde dos lados: los
+// archivos que se le sirven al telefono. Tienen que subir juntas. Si CACHE no
+// sube, un equipo que ya abrio la aplicacion sigue sirviendo los archivos viejos
+// para siempre, y no hay forma de saber desde afuera que version tiene cada uno.
 //
-//   1. APP_VERSION            (este archivo)
-//   2. CACHE en sw.js         si no sube, un telefono sin senal sigue sirviendo
-//                             los archivos viejos y no hay como saber que
-//                             version tiene cada equipo
-//   3. KPI_VERSION en         si no sube, la planilla conserva el diseno viejo,
-//      apps-script/Codigo.gs  porque el script corta apenas ve la misma version
+// KPI_VERSION (apps-script/Codigo.gs) es otra cosa y va por su cuenta: manda el
+// diseno de las hojas de la planilla, que se propaga por un camino distinto
+// (pegar el script en el editor de Google). Un cambio de color en la aplicacion
+// no tiene por que obligar a volver a implementar el Apps Script.
 //
-// Para no depender de la memoria, `node herramientas/verificar_versiones.js`
-// comprueba que las tres coincidan. Esa comprobacion tambien corre dentro de
-// `node pruebas/ejecutar.js`.
+// `node herramientas/verificar_versiones.js` comprueba que APP_VERSION y CACHE
+// coincidan. Esa comprobacion tambien corre dentro de `node pruebas/ejecutar.js`.
 
-const APP_VERSION = '0.1.0-beta';
+const APP_VERSION = '1.0.0';
 
 // Se publica como variable global a proposito: un `const` de nivel superior no
 // queda colgando de `window`, y los demas archivos la leen desde ahi. Sin esta

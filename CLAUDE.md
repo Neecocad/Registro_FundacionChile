@@ -43,8 +43,11 @@ hermano.
 **La jornada del proyecto** es de 08:00 a 16:00 con 30 minutos de colación: 7,5
 horas efectivas por persona y día hábil.
 
-**Estado:** versión beta. La EDT todavía puede cambiar y hay dos actividades
-(1.1 y 10.1) cuyo registro en la aplicación está por confirmar. Las decisiones
+**Estado:** el registro y los indicadores de avance, rendimiento y plazo son
+definitivos. Lo único en prueba es el **bloque económico** de la planilla, que
+depende de valores por cargar y de un supuesto de reparto de los indirectos; esas
+secciones van rotuladas «EN PRUEBA». Quedan además dos actividades (1.1 y 10.1)
+cuyo registro en la aplicación la EDT deja «por confirmar». Las decisiones
 tomadas y lo que queda pendiente están en `docs/decisiones.md`.
 
 Es un pariente cercano de la PWA de replante de Santiago Solar

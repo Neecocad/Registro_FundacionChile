@@ -4,8 +4,14 @@ Aplicación web instalable para **registrar en terreno** las actividades del
 proyecto. Funciona sin conexión y sincroniza contra una planilla de Google, que
 es donde se calculan los indicadores.
 
-> **Versión beta (0.1.0-beta).** La EDT todavía puede cambiar y hay dos
-> actividades cuyo registro en la aplicación está por confirmar.
+> **Qué está en prueba y qué no.** El registro y los indicadores de avance,
+> rendimiento y plazo ya son definitivos. Lo que está en prueba es el **bloque
+> económico**: depende de valores que todavía hay que cargar y de un supuesto de
+> reparto de los costos indirectos que hay que contrastar con la realidad del
+> proyecto. En la planilla, esas secciones van rotuladas «EN PRUEBA».
+>
+> Aparte de eso, quedan dos actividades (1.1 y 10.1) cuyo registro en la
+> aplicación la EDT deja «por confirmar».
 
 ## Cómo está repartido el trabajo
 
@@ -151,21 +157,27 @@ de verdad.
   muestra el número que va a quedar guardado y pide confirmar.
 - **No se avisa nada** cuando la EDT no define una referencia.
 
-## Los tres números de versión
+## Los números de versión
 
-Un cambio no llega al equipo en terreno solo por estar escrito. Hay tres marcas
-que deben subir juntas, y ninguna avisa si se queda atrás:
+Un cambio no llega a destino solo por estar escrito, y ninguna de estas marcas
+avisa cuando se queda atrás. Son **dos caminos distintos**:
 
-| Dónde | Qué pasa si no sube |
-|---|---|
-| `APP_VERSION` en `js/version.js` | No hay forma de saber qué versión tiene cada teléfono |
-| `CACHE` en `sw.js` | Un teléfono que ya abrió la aplicación sigue sirviendo los archivos viejos |
-| `KPI_VERSION` en `apps-script/Codigo.gs` | La planilla conserva el diseño anterior, porque el script corta apenas ve la misma versión |
+**La aplicación** — `APP_VERSION` (`js/version.js`) y `CACHE` (`sw.js`) son la
+misma cosa vista desde dos lados: los archivos que se le sirven al teléfono.
+Suben juntas. Si `CACHE` no sube, un equipo que ya abrió la aplicación sigue
+sirviendo los archivos viejos para siempre.
 
-`node herramientas/verificar_versiones.js` comprueba que las tres coincidan, y
-esa comprobación también corre dentro de `node pruebas/ejecutar.js`.
+**La planilla** — `KPI_VERSION` (`apps-script/Codigo.gs`) manda el diseño de las
+hojas calculadas, que viaja por otro camino: pegar el script en el editor de
+Google. Sube cuando cambia **el diseño de las hojas**, no cuando cambia la
+aplicación. Atarlas obligaría a volver a implementar el Apps Script por un cambio
+de pantalla, y ese es justamente el tipo de paso que se termina saltando.
 
-## Qué falta para dejar de ser beta
+`node herramientas/verificar_versiones.js` comprueba que la aplicación y el caché
+coincidan, y muestra `KPI_VERSION` para que se mire a propósito. También corre
+dentro de `node pruebas/ejecutar.js`.
+
+## Qué falta
 
 - **Comprobar la primera sincronización real.** La planilla
   (**BD_FundacionChile**), el identificador en el Apps Script y la dirección

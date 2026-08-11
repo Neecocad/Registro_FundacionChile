@@ -49,7 +49,7 @@ function enviar(api, reg, tipo) {
     parameter: {
       data: JSON.stringify({
         tipo: tipo === undefined ? 'registro_fundacion_chile' : tipo,
-        version_app: '0.1.0-beta',
+        version_app: '1.0.0',
         record_id: reg.record_id,
         registro: reg,
       }),

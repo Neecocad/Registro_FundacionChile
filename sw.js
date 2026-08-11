@@ -5,10 +5,9 @@
 // la aplicacion sigue sirviendo los archivos viejos indefinidamente, y no hay
 // forma de saber desde afuera que version tiene cada equipo en terreno.
 //
-// La version va junto con APP_VERSION en js/version.js y con KPI_VERSION en
-// apps-script/Codigo.gs. `node herramientas/verificar_versiones.js` comprueba
-// que las tres coincidan.
-const CACHE = 'fch-registro-v0.1.0-beta';
+// La version va junto con APP_VERSION en js/version.js.
+// `node herramientas/verificar_versiones.js` comprueba que coincidan.
+const CACHE = 'fch-registro-v1.0.0';
 
 const ARCHIVOS = [
   './',
@@ -24,6 +23,7 @@ const ARCHIVOS = [
   './js/exportar.js',
   './js/sincronizacion.js',
   './js/app.js',
+  './iconos/logo-biocys.png',
   './iconos/icono-192.png',
   './iconos/icono-512.png',
 ];

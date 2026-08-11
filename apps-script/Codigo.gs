@@ -46,12 +46,16 @@ var HOJA_COSTOS = 'Costos_MariaPinto';
 /**
  * Versión del diseño de las hojas calculadas.
  *
- * Si no sube cuando cambia el diseño, la planilla conserva el diseño viejo para
- * siempre: el script corta apenas ve la misma versión guardada, sin dar ningún
- * error. Tiene que coincidir con APP_VERSION (js/version.js) y con CACHE (sw.js);
- * `node herramientas/verificar_versiones.js` lo comprueba.
+ * Sube cuando cambia el DISEÑO DE LAS HOJAS: una sección nueva del KPI, una
+ * fórmula distinta, una columna más. No tiene nada que ver con la versión de la
+ * aplicación: un cambio de pantalla en el teléfono no necesita volver a
+ * implementar este script, y atarlas obligaría a hacerlo cada vez.
+ *
+ * Si no sube cuando el diseño sí cambió, la planilla conserva el diseño viejo
+ * para siempre: el script corta apenas ve la misma versión guardada, sin dar
+ * ningún error.
  */
-var KPI_VERSION = '0.1.0-beta';
+var KPI_VERSION = '1';
 
 // Jornada del proyecto: 08:00 a 16:00 con 30 minutos de colación.
 var HORAS_JORNADA = 7.5;
@@ -375,7 +379,9 @@ function _asegurarCostos(planilla) {
     }
     hoja.getRange('A1').setNote(
       'Los valores de la columna «valor» se escriben a mano. El script crea las filas que falten, ' +
-      'pero nunca sobreescribe un valor ya cargado.'
+      'pero nunca sobreescribe un valor ya cargado.\n\n' +
+      'Los indicadores económicos que salen de esta hoja están en prueba: conviene contrastarlos ' +
+      'con los costos reales del proyecto antes de usarlos para decidir.'
     );
     hoja.setColumnWidth(2, 260);
     hoja.setColumnWidth(7, 380);
@@ -586,9 +592,12 @@ function _construirKPI(hoja) {
   fila([]);
 
   // ---------- Económico ----------
-  seccion('COSTOS');
+  seccion('COSTOS · EN PRUEBA');
   fila(['Los valores se cargan a mano en la hoja ' + HOJA_COSTOS +
     '. Mientras uno esté vacío, lo que dependa de él queda en blanco.']);
+  fila(['Esta sección está en prueba: hay que contrastar sus números con los costos reales del ' +
+    'proyecto antes de usarlos para decidir. El registro y los indicadores de avance y ' +
+    'rendimiento, en cambio, ya son definitivos.']);
 
   var eCostoHH = fila(['Costo de la hora-hombre',
     '=IFERROR(VLOOKUP("costo_hh",' + HOJA_COSTOS + "!A:D,4,FALSE),\"\")"]);
@@ -633,7 +642,7 @@ function _construirKPI(hoja) {
   fila([]);
 
   // ---------- Costo por unidad ----------
-  seccion('COSTO POR UNIDAD EJECUTADA');
+  seccion('COSTO POR UNIDAD EJECUTADA · EN PRUEBA');
   cabecera(['EDT', 'Actividad', 'Unidad', 'Ejecutado', 'Costo de mano de obra',
     'Costo unitario de mano de obra', 'Indirectos asignados', 'Costo unitario con indirectos']);
   ACTIVIDADES.forEach(function (a, i) {

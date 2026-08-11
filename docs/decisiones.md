@@ -1,8 +1,8 @@
 # Decisiones tomadas al implementar la EDT
 
 Este archivo explica **por qué** el sistema quedó como quedó, sobre todo donde la
-EDT no daba una respuesta única. Sirve para discutir la beta con fundamento y
-para no repetir la conversación en seis meses.
+EDT no daba una respuesta única. Sirve para discutirlo con fundamento y para no
+repetir la conversación en seis meses.
 
 ---
 
@@ -167,6 +167,12 @@ raro. Hay una comprobación automática dedicada a esto.
 
 **Mientras falte un valor, el indicador queda en blanco** y la hoja dice «Faltan
 valores por cargar». No se rellena con cero ni con un promedio.
+
+**Este bloque es el único que está en prueba.** Las dos secciones económicas de
+la hoja KPI van rotuladas «EN PRUEBA» y la hoja de costos lleva una nota que dice
+lo mismo. El registro y los indicadores de avance, rendimiento y plazo ya son
+definitivos; los económicos hay que contrastarlos con los costos reales del
+proyecto antes de usarlos para decidir.
 
 ---
 

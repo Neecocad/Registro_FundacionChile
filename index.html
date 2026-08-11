@@ -12,16 +12,24 @@
 </head>
 <body>
 
-<header class="cabecera">
-  <div class="cabecera-titulo">
-    <h1 id="nombre-proyecto">Registro en terreno</h1>
-    <span class="etiqueta-beta" title="Versión de prueba: la especificación todavía puede cambiar">beta</span>
-  </div>
-  <div class="cabecera-estado">
-    <span id="estado-conexion" class="chip chip-neutro">Conexión: comprobando</span>
-    <span id="estado-pendientes" class="chip chip-neutro">Sin registros pendientes</span>
-  </div>
-</header>
+<div class="barra-superior">
+  <header class="cabecera">
+    <div class="cabecera-titulo">
+      <img src="iconos/logo-biocys.png" alt="Biocys" class="logo">
+      <h1 id="nombre-proyecto">Registro en terreno</h1>
+    </div>
+    <div class="cabecera-estado">
+      <span id="estado-conexion" class="chip chip-neutro">Conexión: comprobando</span>
+      <span id="estado-pendientes" class="chip chip-neutro">Sin registros pendientes</span>
+    </div>
+  </header>
+
+  <nav class="navegacion">
+    <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
+    <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
+    <button type="button" data-pantalla="exportar" class="nav-boton">Exportar</button>
+  </nav>
+</div>
 
 <main>
 
@@ -157,19 +165,15 @@
       <h3>Versión</h3>
       <p id="texto-version" class="ayuda"></p>
       <p class="ayuda">
-        Esta es una versión beta: la especificación todavía puede cambiar y hay dos
-        actividades cuyo registro en la aplicación está por confirmar.
+        Lo que está en prueba son los <strong>indicadores económicos</strong> de la
+        planilla: dependen de valores que todavía hay que cargar y de un supuesto
+        de reparto que hay que validar con la realidad del proyecto. El registro
+        en sí ya es definitivo.
       </p>
     </div>
   </section>
 
 </main>
-
-<nav class="navegacion">
-  <button type="button" data-pantalla="registrar" class="nav-boton activo">Registrar</button>
-  <button type="button" data-pantalla="registros" class="nav-boton">Registros</button>
-  <button type="button" data-pantalla="exportar" class="nav-boton">Exportar</button>
-</nav>
 
 <script src="js/version.js"></script>
 <script src="js/config-actividades.js"></script>

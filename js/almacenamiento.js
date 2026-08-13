@@ -143,6 +143,26 @@
   }
 
   /**
+   * Saca del dispositivo las bajas que la planilla ya confirmo.
+   *
+   * El rastro de un registro eliminado vive en la planilla, con su fila marcada
+   * como no vigente: ahi estan la fecha, la persona, la cantidad y las horas, y
+   * nada de eso se toca. El telefono no necesita guardar una segunda copia.
+   *
+   * Solo se sacan las bajas CONFIRMADAS. Si la planilla todavia no acuso recibo,
+   * el registro se queda: borrarlo antes dejaria su fila viva alla y sin manera
+   * de corregirla.
+   */
+  function purgarBajasConfirmadas() {
+    const registros = listar();
+    const quedan = registros.filter(function (r) {
+      return !(r.registro_activo === false && r.estado_sync === 'sincronizado');
+    });
+    if (quedan.length !== registros.length) escribirJSON(CLAVE_REGISTROS, quedan);
+    return registros.length - quedan.length;
+  }
+
+  /**
    * Suma lo ya ejecutado de una actividad en este dispositivo.
    *
    * Sirve para avisar cuando un registro nuevo hace que el acumulado pase la
@@ -192,6 +212,7 @@
     eliminar: eliminar,
     pendientes: pendientes,
     marcarSincronizados: marcarSincronizados,
+    purgarBajasConfirmadas: purgarBajasConfirmadas,
     acumuladoPorActividad: acumuladoPorActividad,
     leerPreferencias: leerPreferencias,
     guardarPreferencias: guardarPreferencias,

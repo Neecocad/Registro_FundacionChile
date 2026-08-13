@@ -493,12 +493,20 @@ async function main() {
     trasSync.every((r) => r.estado_sync === 'sincronizado'),
     JSON.stringify(trasSync.map((r) => r.estado_sync)));
 
+  // Una vez que la planilla confirma la baja, el registro sale de la lista del
+  // telefono: su rastro queda en la planilla, con la fila marcada como no
+  // vigente. Si se quedara, la lista se llenaria de cosas que ya no cuentan.
   await pagina.click('.nav-boton[data-pantalla="registros"]');
-  const marcasTrasSync = await pagina.$$eval('#lista-registros .marca', (n) => n.map((m) => m.textContent));
-  revisar('una baja ya enviada deja de decir que esta pendiente',
-    !marcasTrasSync.some((m) => /pendiente/.test(m)), JSON.stringify(marcasTrasSync));
-  revisar('la baja enviada se muestra como dada de baja en la planilla',
-    marcasTrasSync.some((m) => /dado de baja en la planilla/.test(m)), JSON.stringify(marcasTrasSync));
+  const trasPurga = await registros(pagina);
+  revisar('la baja confirmada sale del telefono',
+    trasPurga.length === 1 && trasPurga.every((r) => r.registro_activo !== false),
+    JSON.stringify(trasPurga.map((r) => ({ activo: r.registro_activo, sync: r.estado_sync }))));
+
+  const tarjetas = await pagina.$$eval('#lista-registros .tarjeta', (n) => n.length);
+  const insigniaFinal = await pagina.textContent('#conteo-registros');
+  revisar('el numero de la pestaña coincide con las tarjetas que se ven',
+    String(tarjetas) === insigniaFinal.trim(),
+    tarjetas + ' tarjetas y la pestaña dice ' + insigniaFinal.trim());
 
   await pagina.click('.nav-boton[data-pantalla="exportar"]');
   const chipPendientes = await pagina.textContent('#estado-pendientes');

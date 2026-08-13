@@ -367,8 +367,19 @@
       .then(function (resultado) {
         // Solo se marca lo que la planilla confirmo recibir. Lo demas sigue
         // pendiente y se reintenta.
-        if (resultado.enviados.length) Almacenamiento.marcarSincronizados(resultado.enviados);
-        mostrarMensaje('#mensaje-sync', resultado.mensaje, resultado.ok ? null : 'error');
+        let dadosDeBaja = 0;
+        if (resultado.enviados.length) {
+          Almacenamiento.marcarSincronizados(resultado.enviados);
+          // Una vez que la planilla acuso recibo de la baja, el registro deja de
+          // ocupar lugar en la lista del telefono. Su rastro queda en la
+          // planilla, que es donde corresponde.
+          dadosDeBaja = Almacenamiento.purgarBajasConfirmadas();
+        }
+
+        const detalle = dadosDeBaja
+          ? ' ' + dadosDeBaja + ' baja(s) quedaron aplicadas en la planilla y salieron de esta lista.'
+          : '';
+        mostrarMensaje('#mensaje-sync', resultado.mensaje + detalle, resultado.ok ? null : 'error');
         refrescarTodo();
       })
       .finally(function () {

@@ -337,6 +337,51 @@ prueba('un registro dado de baja viaja marcado como no vigente', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Guardado local
+// ---------------------------------------------------------------------------
+
+// El almacenamiento usa localStorage; aca se simula lo justo para probarlo.
+function almacenamientoDePrueba(registros) {
+  const guardado = { fch_registros_v1: JSON.stringify(registros) };
+  const raiz = {
+    localStorage: {
+      getItem: (k) => (k in guardado ? guardado[k] : null),
+      setItem: (k, v) => { guardado[k] = v; },
+      removeItem: (k) => { delete guardado[k]; },
+    },
+  };
+  // El modulo se publica sobre el objeto que recibe, igual que en el navegador.
+  const cargar = new Function('raiz', 'modulo',
+    require('fs').readFileSync(
+      path.join(__dirname, '..', 'js', 'almacenamiento.js'), 'utf8'
+    ).replace('})(typeof self !== \'undefined\' ? self : this);', '})(raiz);') +
+    '\nreturn raiz.Almacenamiento;');
+  return cargar(raiz, {});
+}
+
+prueba('una baja confirmada por la planilla sale de la lista del telefono', () => {
+  // El rastro del registro eliminado vive en la planilla, con su fila marcada
+  // como no vigente. El telefono no necesita una segunda copia.
+  const almacen = almacenamientoDePrueba([
+    { record_id: 'a', registro_activo: false, estado_sync: 'sincronizado' },
+    { record_id: 'b', registro_activo: true, estado_sync: 'sincronizado' },
+  ]);
+  igual(almacen.purgarBajasConfirmadas(), 1);
+  igual(almacen.listar().length, 1);
+  igual(almacen.listar()[0].record_id, 'b', 'el registro vigente no se toca');
+});
+
+prueba('una baja que la planilla no ha confirmado se queda en el telefono', () => {
+  // Borrarla antes dejaria su fila viva en la planilla y sin manera de
+  // corregirla: el telefono seria el unico que sabia que habia que darla de baja.
+  const almacen = almacenamientoDePrueba([
+    { record_id: 'a', registro_activo: false, estado_sync: 'pendiente' },
+  ]);
+  igual(almacen.purgarBajasConfirmadas(), 0);
+  igual(almacen.listar().length, 1);
+});
+
+// ---------------------------------------------------------------------------
 // Configuracion generada desde la EDT
 // ---------------------------------------------------------------------------
 

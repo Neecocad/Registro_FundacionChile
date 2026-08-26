@@ -55,7 +55,7 @@ var HOJA_COSTOS = 'Costos_MariaPinto';
  * para siempre: el script corta apenas ve la misma versión guardada, sin dar
  * ningún error.
  */
-var KPI_VERSION = '2';
+var KPI_VERSION = '3';
 
 // Jornada del proyecto: 08:00 a 16:00 con 30 minutos de colación.
 var HORAS_JORNADA = 7.5;
@@ -542,11 +542,20 @@ function _construirKPI(hoja) {
       a.meta === null ? '' : '=IFERROR(E' + r + '/D' + r + ',"")',
       a.meta === null ? '' : '=D' + r + '-E' + r,
       '=IFERROR(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + '),0)',
+      // OJO CON EL TIPO DEL CODIGO DE ACTIVIDAD. Google convierte "2.5" en el
+      // numero 2,5 al escribirlo en la celda. COUNTIFS y MAXIFS no se dan por
+      // enterados porque adaptan el criterio, pero el "=" de FILTER compara
+      // estricto: numero contra texto da falso y el filtro no devuelve nada.
+      // Asi esta columna mostraba 1 dia con nueve registros, y de ahi salia un
+      // ritmo diario de 421 por dia en una actividad que hace 50.
+      // TO_TEXT deja los dos lados como texto y funciona igual si la celda
+      // guarda un numero o un texto.
+      //
       // El caso "sin registros" se resuelve antes de contar: FILTER sobre un
       // rango sin coincidencias no siempre da error, y COUNTUNIQUE llega a
-      // contar la celda vacia como un valor. Asi daba 1 dia con cero registros.
+      // contar la celda vacia como un valor.
       '=IF(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + ')=0,0,' +
-        'IFERROR(COUNTUNIQUE(FILTER(' + _ref('fecha') + ',' + edtRef + '=' + codigo + ',' +
+        'IFERROR(COUNTUNIQUE(FILTER(' + _ref('fecha') + ',TO_TEXT(' + edtRef + ')=' + codigo + ',' +
         activoRef + '=TRUE)),0))',
       '=IF(COUNTIFS(' + edtRef + ',' + codigo + ',' + _soloVigentes() + ')=0,"—",' +
         'TEXT(MAXIFS(' + _ref('fecha') + ',' + edtRef + ',' + codigo + ',' + _soloVigentes() + '),"yyyy-mm-dd"))'

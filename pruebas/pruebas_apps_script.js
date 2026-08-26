@@ -512,6 +512,30 @@ prueba('sin registros, los dias con registro son cero y no uno', () => {
   });
 });
 
+prueba('el codigo de actividad se compara como texto, no como numero', () => {
+  // Visto con datos reales: Google convierte "2.5" en el numero 2,5 al
+  // escribirlo. COUNTIFS y MAXIFS adaptan el criterio y no se dan por
+  // enterados, pero el "=" de FILTER compara estricto y no devolvia nada. La
+  // columna de dias con registro mostraba 1 con nueve registros, y de ahi salia
+  // un ritmo de 421 por dia en una actividad que hace 50.
+  const entorno = cargarScript();
+  enviar(entorno.api, registro());
+
+  const letraCodigo = letraDeColumna(entorno.api.COLUMNAS.indexOf('codigo_edt') + 1);
+  const referencia = "'" + entorno.api.HOJA_REGISTROS + "'!" + letraCodigo + '2:' + letraCodigo;
+  const formulas = hojas(entorno).kpi.formulas();
+
+  // Lo que no puede aparecer es la comparacion directa. Incluir la columna sin
+  // compararla —como hace la tabla dia a dia— no tiene problema.
+  formulas.forEach((f) => {
+    afirmar(f.indexOf(referencia + '=') === -1,
+      'compara el codigo de actividad sin pasarlo a texto: ' + f.slice(0, 140));
+  });
+
+  const conTexto = formulas.filter((f) => f.indexOf('TO_TEXT(' + referencia + ')=') !== -1);
+  afirmar(conTexto.length >= 11, 'la comparacion como texto tiene que estar en las 11 actividades');
+});
+
 prueba('los indirectos quedan en blanco mientras no haya nada cargado', () => {
   // Un cero se lee como "la camioneta cuesta cero", no como "todavia no lo se".
   const entorno = cargarScript();

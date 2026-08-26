@@ -13,6 +13,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const { APP_VERSION } = require('../js/version.js');
+const CONFIG = require('../js/config-actividades.js');
 
 const RAIZ = path.join(__dirname, '..');
 const CAPTURAS = process.argv.indexOf('--capturas') !== -1;
@@ -51,6 +52,16 @@ function esperarActividades(pagina) {
   return pagina.waitForFunction(
     () => document.querySelectorAll('#codigo_edt option').length > 1
   );
+}
+
+/**
+ * Escribe un numero igual que la aplicacion en pantalla (miles con punto,
+ * decimales con coma). Es la misma regla de `formatearNumero` en js/calculos.js:
+ * si se separaran, la comprobacion buscaria un texto que la pantalla no muestra.
+ */
+function comoEnPantalla(n) {
+  const d = Number.isInteger(Number(n)) ? 0 : 2;
+  return Number(n).toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
 function revisar(nombre, condicion, detalle) {
@@ -270,8 +281,16 @@ async function main() {
   await pagina.waitForSelector('#avisos:not([hidden])');
 
   const textoAcumulado = await pagina.textContent('#avisos');
+  // La meta se lee de la configuracion, no se escribe aca: cuando la EDT cambia
+  // una meta, esta comprobacion tiene que seguir siendo cierta sin retocarla. El
+  // acumulado esperado es la suma de las tres cantidades que se escribieron
+  // arriba (45 + 900 + 1000), formateada como la muestra la pantalla.
+  const metaZanjas = CONFIG.ACTIVIDADES.find((a) => a.codigo === '2.1').meta;
   revisar('el aviso por superar la meta con el acumulado aparece de verdad',
-    /acumulado/.test(textoAcumulado) && /1\.800/.test(textoAcumulado), textoAcumulado.slice(0, 220));
+    /acumulado/.test(textoAcumulado) &&
+      textoAcumulado.indexOf(comoEnPantalla(45 + 900 + 1000)) !== -1 &&
+      textoAcumulado.indexOf(comoEnPantalla(metaZanjas)) !== -1,
+    textoAcumulado.slice(0, 400));
 
   await pagina.click('button:has-text("Volver a revisar")');
   revisar('«Volver a revisar» cierra los avisos sin guardar',

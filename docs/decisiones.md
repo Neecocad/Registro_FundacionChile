@@ -211,7 +211,37 @@ a acordarse de agregarla.
 
 ---
 
-## 9. Lo que quedó pendiente
+## 9. La meta diaria se calcula, no se copia
+
+**Decisión:** en la especificación se carga solo la meta total de cada actividad.
+La meta diaria teórica la deriva el generador: meta ÷ 36 días hábiles.
+
+**Por qué así:** la EDT traía las dos columnas escritas a mano. Basta con que
+alguien actualice la meta y se olvide de la otra columna para que la aplicación
+siga avisando contra una referencia que ya no existe —y ese aviso no da error:
+sale un número plausible que nadie cuestiona. Derivándola, las dos no se pueden
+separar.
+
+**Dónde se cambia:** columna `meta_numero` en la hoja de actividades de
+`especificacion/EDT_Fundacion_Chile_Maria_Pinto_KPI.xlsx`, y después
+`python3 herramientas/generar_config.py`. Eso reescribe `js/config-actividades.js`
+y el bloque `ACTIVIDADES` dentro de `apps-script/Codigo.gs`, que es de donde la
+hoja KPI saca el porcentaje de avance. Las dos partes tienen que quedar iguales:
+si la aplicación avisa con una meta y la planilla calcula el avance con otra, el
+desacuerdo no se nota hasta que alguien compara.
+
+**Ojo con el camino de propagación:** cambiar la meta obliga a pegar de nuevo
+`apps-script/Codigo.gs` en el editor de Google y publicar una **Nueva versión**
+(no una implementación nueva). Como el diseño de la hoja no cambia, hay que
+correr `reconstruirIndicadores` a mano para que las fórmulas se reescriban con
+la meta nueva.
+
+**Metas vigentes (agosto 2026):** 2.1 y 2.5 → 1.369; 2.2 y 2.6 → 1.054,48;
+2.3 y 2.7 → 1.904,68; 2.8 y 2.9 → 500.
+
+---
+
+## 10. Lo que quedó pendiente
 
 - **Crear la planilla, implementar el Apps Script y pegar las dos direcciones.**
   Ver `docs/como_publicar.md`.

@@ -264,11 +264,11 @@ const ACTIVIDADES = [
     "nombre": "Trazado y replanteo de zanjas",
     "tipo_formulario": "Terreno",
     "unidad_medida": "N° de zanjas marcadas",
-    "meta": 1800,
+    "meta": 1369,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "cantidad_zanjas_marcadas",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 50,
+    "meta_diaria_teorica": 38.0278,
     "por_confirmar": false,
     "parametros": [
       {
@@ -291,11 +291,11 @@ const ACTIVIDADES = [
     "nombre": "Trazado y replanteo de microterrazas",
     "tipo_formulario": "Terreno",
     "unidad_medida": "Metros de microterraza marcados",
-    "meta": 1500,
+    "meta": 1054.48,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "metros_microterraza_marcados",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 41.6667,
+    "meta_diaria_teorica": 29.2911,
     "por_confirmar": false,
     "parametros": [
       {
@@ -318,11 +318,11 @@ const ACTIVIDADES = [
     "nombre": "Trazado y replanteo de sacos de tierra",
     "tipo_formulario": "Terreno",
     "unidad_medida": "Metros de sacos de tierra marcados",
-    "meta": 1500,
+    "meta": 1904.68,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "metros_sacos_tierra_marcados",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 41.6667,
+    "meta_diaria_teorica": 52.9078,
     "por_confirmar": false,
     "parametros": [
       {
@@ -372,11 +372,11 @@ const ACTIVIDADES = [
     "nombre": "Confección de zanjas de infiltración",
     "tipo_formulario": "Terreno",
     "unidad_medida": "N° de zanjas confeccionadas, con todas sus componentes",
-    "meta": 1800,
+    "meta": 1369,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "cantidad_zanjas_confeccionadas",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 50,
+    "meta_diaria_teorica": 38.0278,
     "por_confirmar": false,
     "parametros": [
       {
@@ -399,11 +399,11 @@ const ACTIVIDADES = [
     "nombre": "Confección de microterrazas",
     "tipo_formulario": "Terreno",
     "unidad_medida": "Metros construidos",
-    "meta": 1500,
+    "meta": 1054.48,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "metros_microterrazas_construidos",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 41.6667,
+    "meta_diaria_teorica": 29.2911,
     "por_confirmar": false,
     "parametros": [
       {
@@ -426,11 +426,11 @@ const ACTIVIDADES = [
     "nombre": "Confección de sacos de tierra",
     "tipo_formulario": "Terreno",
     "unidad_medida": "Metros construidos",
-    "meta": 1500,
+    "meta": 1904.68,
     "meta_texto": null,
     "campo_cantidad_ejecutada": "metros_sacos_tierra_construidos",
     "tipo_kpi": "Avance + rendimiento HH",
-    "meta_diaria_teorica": 41.6667,
+    "meta_diaria_teorica": 52.9078,
     "por_confirmar": false,
     "parametros": [
       {

@@ -81,13 +81,13 @@ var UMBRAL_ALERTA = 0.9;
 // formulario.
 var ACTIVIDADES = [
   { edt: '1.1', nombre: 'Informe de diseño de obras', unidad: 'Informe de diseño de obras', meta: null },
-  { edt: '2.1', nombre: 'Trazado y replanteo de zanjas', unidad: 'N° de zanjas marcadas', meta: 1800 },
-  { edt: '2.2', nombre: 'Trazado y replanteo de microterrazas', unidad: 'Metros de microterraza marcados', meta: 1500 },
-  { edt: '2.3', nombre: 'Trazado y replanteo de sacos de tierra', unidad: 'Metros de sacos de tierra marcados', meta: 1500 },
+  { edt: '2.1', nombre: 'Trazado y replanteo de zanjas', unidad: 'N° de zanjas marcadas', meta: 1369 },
+  { edt: '2.2', nombre: 'Trazado y replanteo de microterrazas', unidad: 'Metros de microterraza marcados', meta: 1054.48 },
+  { edt: '2.3', nombre: 'Trazado y replanteo de sacos de tierra', unidad: 'Metros de sacos de tierra marcados', meta: 1904.68 },
   { edt: '2.4', nombre: 'Relleno de sacos de tierra', unidad: 'N° de sacos de tierra llenos', meta: null },
-  { edt: '2.5', nombre: 'Confección de zanjas de infiltración', unidad: 'N° de zanjas confeccionadas, con todas sus componentes', meta: 1800 },
-  { edt: '2.6', nombre: 'Confección de microterrazas', unidad: 'Metros construidos', meta: 1500 },
-  { edt: '2.7', nombre: 'Confección de sacos de tierra', unidad: 'Metros construidos', meta: 1500 },
+  { edt: '2.5', nombre: 'Confección de zanjas de infiltración', unidad: 'N° de zanjas confeccionadas, con todas sus componentes', meta: 1369 },
+  { edt: '2.6', nombre: 'Confección de microterrazas', unidad: 'Metros construidos', meta: 1054.48 },
+  { edt: '2.7', nombre: 'Confección de sacos de tierra', unidad: 'Metros construidos', meta: 1904.68 },
   { edt: '2.8', nombre: 'Trazado del sendero', unidad: 'Metros de sendero marcados', meta: 500 },
   { edt: '2.9', nombre: 'Construcción de sendero', unidad: 'Metros construidos', meta: 500 },
   { edt: '10.1', nombre: 'Ejecución de jornada de educación', unidad: 'Cantidad de asistentes', meta: null }

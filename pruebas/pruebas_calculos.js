@@ -171,13 +171,19 @@ prueba('superar la meta con el acumulado avisa', () => {
   // En el proyecto hermano existia una funcion que calculaba este acumulado —lo
   // decia su propio comentario— pero no se llamaba desde ninguna parte, asi que
   // el aviso nunca aparecio. Aca se comprueba que el aviso existe de verdad.
+  // El acumulado previo sale de la meta vigente: si se escribiera un numero fijo,
+  // la comprobacion se caeria cada vez que cambie una meta.
+  const previo = actividadConMeta.meta - 10;
   const avisos = Calculos.revisarRegistro(
     registroNormal({ cantidad_ejecutada: 45 }),
-    actividadConMeta, PROYECTO, JORNADA, 1790
+    actividadConMeta, PROYECTO, JORNADA, previo
   );
   const acumulado = avisos.filter((a) => /acumulado/.test(a.mensaje));
   igual(acumulado.length, 1, 'debe avisar que el acumulado pasa la meta');
-  afirmar(/1.835/.test(acumulado[0].mensaje), 'debe mostrar el acumulado que queda: ' + acumulado[0].mensaje);
+  afirmar(
+    acumulado[0].mensaje.indexOf(Calculos.formatearNumero(previo + 45)) !== -1,
+    'debe mostrar el acumulado que queda: ' + acumulado[0].mensaje
+  );
   afirmar(!avisos.some((a) => a.nivel === 'error'), 'no bloquea');
 });
 
@@ -290,7 +296,7 @@ prueba('la persona que registra ya no es texto libre', () => {
 });
 
 prueba('la fila lleva la meta vigente de la actividad', () => {
-  igual(Sincronizacion.fila(registroGuardado(), config).meta_vigente, 1800);
+  igual(Sincronizacion.fila(registroGuardado(), config).meta_vigente, actividadConMeta.meta);
   igual(
     Sincronizacion.fila(registroGuardado({ codigo_edt: '2.4' }), config).meta_vigente,
     '',
@@ -446,6 +452,36 @@ prueba('la duracion y las horas-hombre son campos calculados, no campos por llen
     afirmar(!!p, 'falta el parametro ' + codigo);
     igual(p.origen, 'Calculado', codigo + ' no puede ser un campo que la persona llene');
   });
+});
+
+prueba('la meta diaria teorica calza con la meta y el plazo', () => {
+  // Antes se copiaba de una columna de la planilla, y bastaba cambiar la meta y
+  // olvidar esa columna para que la aplicacion avisara contra una referencia que
+  // ya no existia. Ahora se calcula, y esto lo comprueba.
+  config.ACTIVIDADES.filter((a) => a.meta).forEach((a) => {
+    cercano(
+      a.meta_diaria_teorica,
+      a.meta / PROYECTO.dias_habiles_plan,
+      0.0001,
+      'la meta diaria de ' + a.codigo + ' no calza con su meta'
+    );
+  });
+  config.ACTIVIDADES.filter((a) => !a.meta).forEach((a) => {
+    esNulo(a.meta_diaria_teorica, 'la actividad ' + a.codigo + ' no tiene meta y no puede tener ritmo');
+  });
+});
+
+prueba('las metas vigentes son las de la EDT actualizada', () => {
+  const metas = {};
+  config.ACTIVIDADES.forEach((a) => { metas[a.codigo] = a.meta; });
+  igual(metas['2.1'], 1369);
+  igual(metas['2.2'], 1054.48);
+  igual(metas['2.3'], 1904.68);
+  igual(metas['2.5'], 1369);
+  igual(metas['2.6'], 1054.48);
+  igual(metas['2.7'], 1904.68);
+  igual(metas['2.8'], 500);
+  igual(metas['2.9'], 500);
 });
 
 prueba('la jornada configurada es la informada para el proyecto', () => {

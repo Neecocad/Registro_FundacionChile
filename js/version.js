@@ -13,7 +13,7 @@
 // `node herramientas/verificar_versiones.js` comprueba que APP_VERSION y CACHE
 // coincidan. Esa comprobacion tambien corre dentro de `node pruebas/ejecutar.js`.
 
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 
 // Se publica como variable global a proposito: un `const` de nivel superior no
 // queda colgando de `window`, y los demas archivos la leen desde ahi. Sin esta

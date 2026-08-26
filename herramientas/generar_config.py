@@ -201,7 +201,15 @@ def leer(planilla):
             "meta_texto": texto(fila.get("meta_texto")) or None,
             "campo_cantidad_ejecutada": texto(fila.get("campo_cantidad_ejecutada")),
             "tipo_kpi": texto(fila.get("tipo_kpi")),
-            "meta_diaria_teorica": numero(fila.get("meta_diaria_teorica")),
+            # La meta diaria se calcula, no se copia de la planilla: es
+            # meta / dias habiles, y basta con que alguien cambie la meta y
+            # olvide esta columna para que la aplicacion avise usando una
+            # referencia que ya no existe.
+            "meta_diaria_teorica": (
+                round(numero(fila.get("meta_numero")) / proyecto["dias_habiles_plan"], 4)
+                if numero(fila.get("meta_numero"))
+                else None
+            ),
             "por_confirmar": registro_app.lower().startswith("por confirmar"),
             "parametros": especificos.get(codigo, []),
         }

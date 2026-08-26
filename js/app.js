@@ -231,7 +231,12 @@
     const actividad = actividadElegida();
     Formulario.dibujarEspecificos($('#campos-especificos'), actividad, config);
     $('#bloque-especificos').hidden = !actividad;
-    $('#detalle-actividad').textContent = Formulario.textoDetalleActividad(actividad);
+    // El parrafo se oculta cuando no hay nada que decir. Sin esto queda un
+    // elemento vacio con su margen, y el formulario muestra un hueco entre la
+    // actividad y el bloque de campos sin que nada lo explique.
+    const detalle = Formulario.textoDetalleActividad(actividad);
+    $('#detalle-actividad').textContent = detalle;
+    $('#detalle-actividad').hidden = !detalle;
   }
 
   // ---------------------------------------------------------------------------

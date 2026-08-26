@@ -152,26 +152,28 @@
     });
   }
 
-  /** Texto descriptivo de la actividad elegida: meta, unidad y ritmo de referencia. */
+  /**
+   * Aviso que acompana a la actividad elegida. Hoy solo queda uno: cuando la EDT
+   * deja el registro de esa actividad «por confirmar».
+   *
+   * Antes esta linea mostraba tambien la unidad, la meta del proyecto y el ritmo
+   * de referencia. Se sacaron a proposito:
+   *
+   * - La meta y el ritmo son numeros del proyecto completo, y la pantalla donde
+   *   aparecian es la de un telefono que solo ve lo suyo. Puestos al lado del
+   *   campo donde se escribe la cantidad del dia, invitan a leerlos como si
+   *   fueran una vara para la jornada, que no es lo que miden. El avance contra
+   *   la meta vive en la planilla, que es la que tiene todos los registros.
+   * - La unidad ya la dice la etiqueta del campo: «Cantidad de zanjas
+   *   confeccionadas completas». Repetirla abajo no agregaba nada.
+   *
+   * El aviso al escribir una cantidad muy fuera de lo esperado sigue existiendo
+   * y sigue nombrando el ritmo de referencia (js/calculos.js). Ese aparece solo
+   * cuando hay algo que revisar, y sin el numero no se entenderia por que salta.
+   */
   function textoDetalleActividad(actividad) {
-    if (!actividad) return '';
-    const partes = ['Unidad: ' + actividad.unidad_medida + '.'];
-
-    if (actividad.meta) {
-      partes.push('Meta del proyecto: ' + Calculos.formatearNumero(actividad.meta) + '.');
-      if (actividad.meta_diaria_teorica) {
-        partes.push('Ritmo de referencia: ' + Calculos.formatearNumero(actividad.meta_diaria_teorica, 1) + ' por día hábil.');
-      }
-    } else {
-      // Sin meta no se compara contra nada; se dice explicitamente para que
-      // nadie espere un porcentaje de avance que no puede existir.
-      partes.push('Sin meta definida en la EDT: se registra lo ejecutado y no se calcula porcentaje de avance.');
-    }
-
-    if (actividad.por_confirmar) {
-      partes.push('El registro de esta actividad en la aplicación está por confirmar.');
-    }
-    return partes.join(' ');
+    if (!actividad || !actividad.por_confirmar) return '';
+    return 'El registro de esta actividad en la aplicación está por confirmar.';
   }
 
   /** Lee los valores del formulario y arma el registro tal como se va a guardar. */

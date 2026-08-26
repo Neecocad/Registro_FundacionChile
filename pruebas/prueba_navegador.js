@@ -204,6 +204,33 @@ async function main() {
     JSON.stringify(listas.sector.opciones) === JSON.stringify(['Las Mercedes', 'Ibacache']),
     JSON.stringify(listas.sector.opciones));
 
+  // --- Debajo de la actividad no van los numeros del proyecto ----------------
+  // La meta y el ritmo de referencia se mostraban aca. Son numeros del proyecto
+  // completo puestos en la pantalla de un telefono que solo ve lo suyo, asi que
+  // se sacaron. Se comprueba mirando lo que se ve, no el codigo: un textContent
+  // que quedara escrito pero con el parrafo oculto tambien tiene que fallar.
+  const detalle = await pagina.evaluate(() => {
+    const n = document.querySelector('#detalle-actividad');
+    return { texto: n ? n.textContent : null, visible: !!n && !n.hidden && n.offsetParent !== null };
+  });
+  revisar('debajo de la actividad no aparece la meta del proyecto ni el ritmo de referencia',
+    !detalle.visible && !/[Mm]eta|[Rr]itmo/.test(detalle.texto || ''), JSON.stringify(detalle));
+
+  // Caso de control del mismo parrafo: el aviso que si tiene que seguir saliendo.
+  const porConfirmar = (require('../js/config-actividades.js').ACTIVIDADES
+    .filter((a) => a.por_confirmar)[0] || {}).codigo;
+  if (porConfirmar) {
+    await pagina.selectOption('#codigo_edt', porConfirmar);
+    const avisoConfirmar = await pagina.evaluate(() => {
+      const n = document.querySelector('#detalle-actividad');
+      return { texto: n ? n.textContent : '', visible: !!n && !n.hidden && n.offsetParent !== null };
+    });
+    revisar('una actividad «por confirmar» sigue avisandolo debajo del selector',
+      avisoConfirmar.visible && /por confirmar/.test(avisoConfirmar.texto),
+      JSON.stringify(avisoConfirmar));
+    await pagina.selectOption('#codigo_edt', '2.1');
+  }
+
   // --- Panel de calculados --------------------------------------------------
 
   await llenarJornada(pagina, 45);

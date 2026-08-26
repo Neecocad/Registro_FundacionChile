@@ -114,6 +114,13 @@ h3 { font-size: 0.98rem; margin: 1.4rem 0 0.5rem; }
   margin: 0.3rem 0 0;
 }
 
+/* El navegador ya oculta lo que lleva [hidden], pero basta con que alguna regla
+   le de un display a .ayuda para que deje de hacerlo, y no daria ningun error:
+   quedaria un parrafo vacio ocupando su margen. Se deja escrito. */
+.ayuda[hidden] {
+  display: none;
+}
+
 /* --- Formulario ---------------------------------------------------------- */
 
 .bloque {

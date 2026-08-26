@@ -61,16 +61,58 @@ cambia nada en Google.**
 2. Guardar.
 3. **Implementar → Administrar implementaciones** → editar (el lápiz) la que ya
    existe → Versión: **Nueva versión** → Implementar.
-4. Si cambió el diseño de las hojas calculadas, ejecutar
-   **`reconstruirIndicadores`**: en la barra superior del editor, elegir esa
-   función en la lista y presionar **Ejecutar**.
+4. Ejecutar **`reconstruirIndicadores`** (ver más abajo el paso a paso).
 
    Sin ese paso, la hoja KPI se rehace recién cuando llega el próximo registro.
    Si el equipo no está sincronizando en ese momento, la planilla se queda con
    el diseño anterior y nada lo advierte.
 
-   La función no toca la hoja de registros ni los valores cargados a mano en la
-   de costos.
+### Ejecutar `reconstruirIndicadores` paso a paso
+
+Un archivo de Apps Script contiene varias **funciones**: bloques de código con
+nombre, cada uno con su tarea. `doPost` es la que corre sola cuando un teléfono
+sincroniza. `reconstruirIndicadores` no corre sola nunca: está para ejecutarla a
+mano cuando hay que rehacer la hoja de indicadores sin esperar al próximo
+registro. El editor de Google permite ejecutar cualquier función del archivo
+directamente, y eso es lo que se hace acá.
+
+1. En el editor de Apps Script, **guardar** primero (el icono del disquete, o
+   `Ctrl+S`). El botón Ejecutar corre lo que está guardado, no lo que se ve en
+   pantalla: sin guardar, se ejecuta el código anterior y no hay ningún aviso.
+2. En la barra de arriba hay una **lista desplegable con nombres de funciones**,
+   entre el botón «Depurar» y el botón «Ejecutar». Abrirla y elegir
+   **`reconstruirIndicadores`**.
+3. Presionar **Ejecutar**.
+4. **La primera vez, Google pide autorización.** Aparece «Se requiere
+   autorización» → *Revisar permisos* → elegir la cuenta → una pantalla que dice
+   **«Google no ha verificado esta aplicación»**. Eso no es una falla: significa
+   que el script es propio y no pasó por la revisión pública de Google. Hay que
+   entrar en **Configuración avanzada** (abajo a la izquierda) y luego en **Ir a
+   (nombre del proyecto) (no seguro)** → *Permitir*. Este paso se pide una sola
+   vez por cuenta.
+5. Abajo se abre el **Registro de ejecución**. Cuando termina bien muestra
+   `Ejecución completada` y la línea:
+
+   ```
+   Hojas calculadas rehechas en «BD_FundacionChile» con el diseño 3.
+   ```
+
+   Si dice otro nombre de planilla, el script está apuntando a otro archivo y
+   hay que revisar `ID_PLANILLA` antes de seguir.
+
+6. Volver a la planilla y comprobar en la hoja `KPI_MariaPinto` que los números
+   cambiaron. Recargar la pestaña si estaba abierta desde antes.
+
+**Qué toca y qué no.** La función rehace la hoja `KPI_MariaPinto` completa:
+borra su contenido y sus formatos, y la vuelve a escribir. No toca
+`Registros_MariaPinto` —los registros del equipo quedan intactos— ni los valores
+cargados a mano en `Costos_MariaPinto`, donde solo agrega las filas que falten.
+Tampoco elimina ninguna hoja: en Google Sheets, las fórmulas que apuntan a una
+hoja eliminada quedan en `#REF!` y no se recuperan al crear otra con el mismo
+nombre.
+
+**Se puede ejecutar las veces que haga falta.** No acumula ni duplica nada:
+cada ejecución deja la hoja igual que la anterior.
 
 **«Nueva versión» y «Nueva implementación» no son lo mismo.**
 

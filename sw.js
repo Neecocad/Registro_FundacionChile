@@ -7,7 +7,7 @@
 //
 // La version va junto con APP_VERSION en js/version.js.
 // `node herramientas/verificar_versiones.js` comprueba que coincidan.
-const CACHE = 'fch-registro-v1.0.6';
+const CACHE = 'fch-registro-v1.0.7';
 
 const ARCHIVOS = [
   './',
@@ -64,8 +64,21 @@ self.addEventListener('fetch', function (evento) {
 
   // Primero la red, y si no hay, lo guardado. Asi un equipo con senal recibe la
   // version nueva apenas se publica, y uno sin senal sigue funcionando.
+  //
+  // OJO: "primero la red" no alcanzaba. Debajo de este cache hay otro, el del
+  // propio navegador, y GitHub Pages sirve los archivos con una duracion de
+  // varios minutos. Sin pedir revalidacion, este fetch se resolvia contra ese
+  // otro cache y devolvia el archivo viejo sin llegar al servidor: la aplicacion
+  // seguia mostrando la version anterior aunque el telefono tuviera senal, y
+  // nada lo advertia. `cache: 'no-cache'` obliga a preguntarle al servidor si
+  // el archivo cambio. Si no cambio, el servidor responde 304 y no se vuelve a
+  // descargar, asi que no cuesta datos en terreno.
+  const peticionRed = peticion.url.indexOf(self.registration.scope) === 0
+    ? new Request(peticion.url, { cache: 'no-cache', credentials: 'same-origin' })
+    : peticion;
+
   evento.respondWith(
-    fetch(peticion)
+    fetch(peticionRed)
       .then(function (respuesta) {
         if (respuesta && respuesta.status === 200 && respuesta.type === 'basic') {
           const copia = respuesta.clone();
